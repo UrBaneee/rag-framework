@@ -2550,7 +2550,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 3.1 | Implement local file loader | [x] | 2026-03-22 | RawArtifact + LocalFileLoader with metadata |
 | 3.2 | Implement minimal sniffer | [x] | 2026-03-22 | MagicSniffer, MimeSniffer, CompositeSniffer |
 | 3.3 | Implement minimal parser router | [x] | 2026-03-22 | ParsePlan + ParserOrchestrator with fallback |
-| 3.4 | Implement TXT/Markdown parser | [ ] | - | |
+| 3.4 | Implement TXT/Markdown parser | [x] | 2026-03-22 | MdParser: heading/paragraph/code blocks |
 | 3.5 | Implement HTML parser | [ ] | - | |
 | 3.6 | Implement PDF text parser | [ ] | - | |
 | 3.7 | Implement parse quality gates | [ ] | - | |
@@ -2686,7 +2686,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 0 | 3 | 3 | 100% |
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
-| Phase 3 | 16 | 3 | 19% |
+| Phase 3 | 16 | 4 | 25% |
 | Phase 4 | 7 | 0 | 0% |
 | Phase 5 | 4 | 0 | 0% |
 | Phase 6 | 4 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **18** | **21%** |
+| **Total** | **86** | **19** | **22%** |

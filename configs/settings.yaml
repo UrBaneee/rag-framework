@@ -1,0 +1,66 @@
+# RAG Framework — Global Default Settings
+# All values here serve as the base configuration.
+# Profile files in configs/profiles/ can override any key.
+
+# ── Embedding ─────────────────────────────────────────────
+embedding:
+  provider: openai
+  model: text-embedding-3-small
+  dim: 1536
+  batch_size: 64
+
+# ── Retrieval ─────────────────────────────────────────────
+retrieval:
+  bm25_top_k: 20
+  vector_top_k: 20
+  fusion_pool_size: 40   # bm25_top_k + vector_top_k
+  rerank_top_k: 8        # candidates after cross-encoder
+  rrf_k: 60              # RRF constant (academic default)
+
+# ── Reranking ─────────────────────────────────────────────
+reranking:
+  enabled: true
+  provider: voyage       # voyage | cohere | cross-encoder
+
+# ── Generation ────────────────────────────────────────────
+generation:
+  context_top_k: 3       # chunks packed into the prompt context
+  token_budget: 3000     # max tokens for context window
+  abstain_if_empty: true
+  llm_provider: openai
+  llm_model: gpt-4o-mini
+
+# ── Ingestion ─────────────────────────────────────────────
+ingestion:
+  chunk_max_tokens: 400
+  chunk_overlap_tokens: 50
+  quality_gate:
+    min_char_count: 50
+    max_non_printable_ratio: 0.05
+    max_repetition_score: 0.4
+
+# ── Storage ───────────────────────────────────────────────
+storage:
+  data_dir: ./data
+  docstore_db: docstore.sqlite
+  tracestore_db: tracestore.sqlite
+  vector_index_dir: faiss_index
+  bm25_index_dir: bm25_index
+
+# ── Evaluation ────────────────────────────────────────────
+evaluation:
+  recall_k_values: [1, 3, 5, 10]
+  default_k: 5
+
+# ── Connectors (V2) ───────────────────────────────────────
+connectors:
+  enabled: false
+  providers:
+    email:
+      enabled: false
+    slack:
+      enabled: false
+    notion:
+      enabled: false
+    google_docs:
+      enabled: false

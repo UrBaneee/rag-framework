@@ -1,0 +1,23 @@
+# Profile: local_quality
+# Optimised for retrieval quality on local development machines.
+# Uses larger candidate pools, reranking enabled, and a stronger LLM.
+# Expect higher latency and API costs compared to local_fast.
+
+retrieval:
+  bm25_top_k: 20
+  vector_top_k: 20
+  fusion_pool_size: 40
+  rerank_top_k: 8
+
+reranking:
+  enabled: true
+  provider: voyage
+
+generation:
+  context_top_k: 3
+  token_budget: 3000
+  llm_model: gpt-4o
+
+ingestion:
+  chunk_max_tokens: 400
+  chunk_overlap_tokens: 50

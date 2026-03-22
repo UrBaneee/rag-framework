@@ -2541,7 +2541,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 2.1 | Implement SQLite DocStore schema creation | [x] | 2026-03-22 | documents, text_blocks, chunks tables + indexes |
 | 2.2 | Implement SQLite TraceStore schema creation | [x] | 2026-03-22 | runs, trace_events tables + indexes |
 | 2.3 | Implement basic DocStore write/read methods | [x] | 2026-03-22 | SQLiteDocStore with full CRUD for docs/blocks/chunks |
-| 2.4 | Implement basic TraceStore write/read methods | [ ] | - | |
+| 2.4 | Implement basic TraceStore write/read methods | [x] | 2026-03-22 | SQLiteTraceStore with runs + answer trace CRUD |
 
 ### Phase 3 — Minimal Ingestion Main Path
 
@@ -2685,7 +2685,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 |---|---:|---:|---:|
 | Phase 0 | 3 | 3 | 100% |
 | Phase 1 | 8 | 8 | 100% |
-| Phase 2 | 4 | 3 | 75% |
+| Phase 2 | 4 | 4 | 100% |
 | Phase 3 | 16 | 0 | 0% |
 | Phase 4 | 7 | 0 | 0% |
 | Phase 5 | 4 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **14** | **16%** |
+| **Total** | **86** | **15** | **17%** |

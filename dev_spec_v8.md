@@ -2526,7 +2526,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
 | 1.1 | Define core document contracts | [x] | 2026-03-22 | Document, IRBlock, ParseReport with Pydantic v2 |
-| 1.2 | Define chunking and retrieval contracts | [ ] | - | |
+| 1.2 | Define chunking and retrieval contracts | [x] | 2026-03-22 | TextBlock, Chunk, Candidate with Pydantic v2 |
 | 1.3 | Define citation and answer contracts | [ ] | - | |
 | 1.4a | Define ingestion-side interface contracts | [ ] | - | |
 | 1.4b | Define retrieval-side interface contracts | [ ] | - | |
@@ -2684,7 +2684,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase | Total Tasks | Completed | Progress |
 |---|---:|---:|---:|
 | Phase 0 | 3 | 3 | 100% |
-| Phase 1 | 8 | 1 | 13% |
+| Phase 1 | 8 | 2 | 25% |
 | Phase 2 | 4 | 0 | 0% |
 | Phase 3 | 16 | 0 | 0% |
 | Phase 4 | 7 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **4** | **5%** |
+| **Total** | **86** | **5** | **6%** |

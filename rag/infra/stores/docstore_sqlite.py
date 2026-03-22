@@ -1,7 +1,16 @@
-"""SQLite implementation of the DocStore — schema creation."""
+"""SQLite implementation of the DocStore — schema creation and CRUD."""
 
+import json
 import sqlite3
+import uuid
 from pathlib import Path
+from typing import Optional
+
+from rag.core.contracts.chunk import Chunk
+from rag.core.contracts.document import Document
+from rag.core.contracts.ir_block import BlockType
+from rag.core.contracts.text_block import TextBlock
+from rag.core.interfaces.doc_store import BaseDocStore
 
 
 # ── DDL ───────────────────────────────────────────────────────────────────────
@@ -116,3 +125,261 @@ def get_indexes(db_path: str | Path) -> list[str]:
             "SELECT name FROM sqlite_master WHERE type='index' ORDER BY name;"
         ).fetchall()
     return [row[0] for row in rows]
+
+
+# ── SQLiteDocStore ─────────────────────────────────────────────────────────────
+
+class SQLiteDocStore(BaseDocStore):
+    """SQLite-backed document store.
+
+    Initialises the schema on construction and exposes CRUD methods for
+    documents, text blocks, and chunks.
+
+    Args:
+        db_path: Path to the SQLite database file.
+    """
+
+    def __init__(self, db_path: str | Path) -> None:
+        self._db_path = Path(db_path)
+        init_schema(self._db_path)
+
+    def _conn(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("PRAGMA foreign_keys = ON;")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    # ── Documents ──────────────────────────────────────────────────────────────
+
+    def save_document(self, document: Document) -> str:
+        """Persist a Document and return its doc_id.
+
+        Args:
+            document: The parsed Document to store.
+
+        Returns:
+            The ``doc_id`` of the stored document.
+        """
+        try:
+            with self._conn() as conn:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO documents
+                        (doc_id, source_path, mime_type, metadata_json)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        document.doc_id,
+                        document.source_path,
+                        document.mime_type,
+                        json.dumps(document.metadata),
+                    ),
+                )
+        except sqlite3.Error as exc:
+            raise RuntimeError(f"Failed to save document {document.doc_id}: {exc}") from exc
+        return document.doc_id
+
+    def get_document(self, doc_id: str) -> Optional[Document]:
+        """Retrieve a Document by its doc_id.
+
+        Args:
+            doc_id: Unique document identifier.
+
+        Returns:
+            The Document if found, or None.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT doc_id, source_path, mime_type, metadata_json FROM documents WHERE doc_id = ?",
+                (doc_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return Document(
+            doc_id=row["doc_id"],
+            source_path=row["source_path"],
+            mime_type=row["mime_type"],
+            metadata=json.loads(row["metadata_json"]),
+        )
+
+    def document_exists(self, doc_id: str) -> bool:
+        """Check whether a document with the given doc_id exists.
+
+        Args:
+            doc_id: Unique document identifier.
+
+        Returns:
+            True if the document exists in the store.
+        """
+        with self._conn() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE doc_id = ?", (doc_id,)
+            ).fetchone()[0]
+        return count > 0
+
+    def delete_document(self, doc_id: str) -> None:
+        """Delete a document and all associated blocks and chunks.
+
+        Args:
+            doc_id: Unique document identifier to delete.
+        """
+        try:
+            with self._conn() as conn:
+                conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
+        except sqlite3.Error as exc:
+            raise RuntimeError(f"Failed to delete document {doc_id}: {exc}") from exc
+
+    # ── Text blocks ────────────────────────────────────────────────────────────
+
+    def save_text_blocks(self, blocks: list[TextBlock]) -> None:
+        """Persist a list of TextBlocks.
+
+        Args:
+            blocks: TextBlocks to store.
+        """
+        rows = []
+        for block in blocks:
+            block_id = block.block_id or str(uuid.uuid4())
+            rows.append((
+                block_id,
+                block.doc_id,
+                block.block_type.value,
+                block.text,
+                block.block_hash,
+                block.page,
+                block.sequence,
+                json.dumps(block.section_path),
+            ))
+        try:
+            with self._conn() as conn:
+                conn.executemany(
+                    """
+                    INSERT OR REPLACE INTO text_blocks
+                        (block_id, doc_id, block_type, text, block_hash,
+                         page, sequence, section_path_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+        except sqlite3.Error as exc:
+            raise RuntimeError(f"Failed to save text blocks: {exc}") from exc
+
+    def get_text_blocks(self, doc_id: str) -> list[TextBlock]:
+        """Retrieve all TextBlocks for a document, ordered by sequence.
+
+        Args:
+            doc_id: Parent document identifier.
+
+        Returns:
+            Ordered list of TextBlocks.
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT block_id, doc_id, block_type, text, block_hash,
+                       page, sequence, section_path_json
+                FROM text_blocks WHERE doc_id = ? ORDER BY sequence
+                """,
+                (doc_id,),
+            ).fetchall()
+        return [
+            TextBlock(
+                block_id=row["block_id"],
+                doc_id=row["doc_id"],
+                block_type=BlockType(row["block_type"]),
+                text=row["text"],
+                block_hash=row["block_hash"],
+                page=row["page"],
+                sequence=row["sequence"],
+                section_path=json.loads(row["section_path_json"]),
+            )
+            for row in rows
+        ]
+
+    # ── Chunks ─────────────────────────────────────────────────────────────────
+
+    def save_chunks(self, chunks: list[Chunk]) -> None:
+        """Persist a list of Chunks.
+
+        Args:
+            chunks: Chunks to store.
+        """
+        rows = []
+        for chunk in chunks:
+            chunk_id = chunk.chunk_id or str(uuid.uuid4())
+            rows.append((
+                chunk_id,
+                chunk.doc_id,
+                chunk.stable_text,
+                chunk.display_text,
+                chunk.chunk_signature,
+                json.dumps(chunk.block_hashes),
+                chunk.token_count,
+                json.dumps(chunk.metadata),
+            ))
+        try:
+            with self._conn() as conn:
+                conn.executemany(
+                    """
+                    INSERT OR REPLACE INTO chunks
+                        (chunk_id, doc_id, stable_text, display_text,
+                         chunk_signature, block_hashes_json, token_count, metadata_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+        except sqlite3.Error as exc:
+            raise RuntimeError(f"Failed to save chunks: {exc}") from exc
+
+    def get_chunks(self, doc_id: str) -> list[Chunk]:
+        """Retrieve all Chunks for a document.
+
+        Args:
+            doc_id: Parent document identifier.
+
+        Returns:
+            List of Chunks for the document.
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT chunk_id, doc_id, stable_text, display_text,
+                       chunk_signature, block_hashes_json, token_count, metadata_json
+                FROM chunks WHERE doc_id = ?
+                """,
+                (doc_id,),
+            ).fetchall()
+        return [self._row_to_chunk(row) for row in rows]
+
+    def get_chunk_by_id(self, chunk_id: str) -> Optional[Chunk]:
+        """Retrieve a single Chunk by its chunk_id.
+
+        Args:
+            chunk_id: Unique chunk identifier.
+
+        Returns:
+            The Chunk if found, or None.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                """
+                SELECT chunk_id, doc_id, stable_text, display_text,
+                       chunk_signature, block_hashes_json, token_count, metadata_json
+                FROM chunks WHERE chunk_id = ?
+                """,
+                (chunk_id,),
+            ).fetchone()
+        return self._row_to_chunk(row) if row else None
+
+    @staticmethod
+    def _row_to_chunk(row: sqlite3.Row) -> Chunk:
+        return Chunk(
+            chunk_id=row["chunk_id"],
+            doc_id=row["doc_id"],
+            stable_text=row["stable_text"],
+            display_text=row["display_text"],
+            chunk_signature=row["chunk_signature"],
+            block_hashes=json.loads(row["block_hashes_json"]),
+            token_count=row["token_count"],
+            metadata=json.loads(row["metadata_json"]),
+        )

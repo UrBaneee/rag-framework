@@ -2528,7 +2528,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 1.1 | Define core document contracts | [x] | 2026-03-22 | Document, IRBlock, ParseReport with Pydantic v2 |
 | 1.2 | Define chunking and retrieval contracts | [x] | 2026-03-22 | TextBlock, Chunk, Candidate with Pydantic v2 |
 | 1.3 | Define citation and answer contracts | [x] | 2026-03-22 | Span, Citation, Answer, AnswerTrace, PipelineStep |
-| 1.4a | Define ingestion-side interface contracts | [ ] | - | |
+| 1.4a | Define ingestion-side interface contracts | [x] | 2026-03-22 | BaseParser, BaseCleaner, BaseBlockSplitter, BaseChunkPacker |
 | 1.4b | Define retrieval-side interface contracts | [ ] | - | |
 | 1.4c | Define storage and generation interface contracts | [ ] | - | |
 | 1.5 | Add base settings config | [ ] | - | |
@@ -2684,7 +2684,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase | Total Tasks | Completed | Progress |
 |---|---:|---:|---:|
 | Phase 0 | 3 | 3 | 100% |
-| Phase 1 | 8 | 3 | 38% |
+| Phase 1 | 8 | 4 | 50% |
 | Phase 2 | 4 | 0 | 0% |
 | Phase 3 | 16 | 0 | 0% |
 | Phase 4 | 7 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **6** | **7%** |
+| **Total** | **86** | **7** | **8%** |

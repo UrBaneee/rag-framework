@@ -1,0 +1,3 @@
+# Grounded Answer Prompt
+# TODO: Fill in during Phase 7 (Task 7.4)
+# This file will contain the prompt template for grounded answer generation.

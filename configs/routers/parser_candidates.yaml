@@ -1,0 +1,25 @@
+# Parser routing configuration
+# Maps detected_type (from CompositeSniffer) to an ordered list of parser names.
+# The orchestrator tries candidates in order and uses the first successful result.
+# Add more candidates per type for fallback chains.
+
+routes:
+  pdf:
+    candidates: [pymupdf]
+
+  html:
+    candidates: [trafilatura]
+
+  txt:
+    candidates: [md_parser]
+
+  markdown:
+    candidates: [md_parser]
+
+  # Unsupported types — empty candidate list triggers explicit unsupported result
+  unsupported:
+    candidates: []
+
+  # Unknown types — no candidates, will return unsupported_format
+  unknown:
+    candidates: []

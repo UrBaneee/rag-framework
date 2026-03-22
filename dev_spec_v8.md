@@ -2518,7 +2518,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
 | 0.1 | Create project folder structure | [x] | 2026-03-22 | Created full package tree and placeholders |
-| 0.2 | Add Python project config | [ ] | - | |
+| 0.2 | Add Python project config | [x] | 2026-03-22 | pyproject.toml, requirements.txt, .env.example |
 | 0.3 | Set up pytest infrastructure | [ ] | - | |
 
 ### Phase 1 — Core Contracts and Config
@@ -2683,7 +2683,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Phase | Total Tasks | Completed | Progress |
 |---|---:|---:|---:|
-| Phase 0 | 3 | 1 | 33% |
+| Phase 0 | 3 | 2 | 67% |
 | Phase 1 | 8 | 0 | 0% |
 | Phase 2 | 4 | 0 | 0% |
 | Phase 3 | 16 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **1** | **1%** |
+| **Total** | **86** | **2** | **2%** |

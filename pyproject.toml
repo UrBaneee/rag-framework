@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-framework"
+version = "0.1.0"
+description = "Modular, pluggable RAG knowledge retrieval framework"
+requires-python = ">=3.11"
+dependencies = [
+    # Configuration and environment
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "PyYAML>=6.0",
+
+    # Document parsing
+    "pymupdf>=1.23.0",
+    "trafilatura>=1.8.0",
+    "lxml-html-clean>=0.2.0",
+
+    # Embeddings and LLM
+    "openai>=1.30.0",
+
+    # Vector index
+    "faiss-cpu>=1.7.4",
+
+    # Keyword index
+    "rank-bm25>=0.2.2",
+
+    # Reranking
+    "voyageai>=0.2.0",
+
+    # Storage
+    # sqlite3 is part of Python standard library
+
+    # UI
+    "streamlit>=1.35.0",
+
+    # Utilities
+    "numpy>=1.26.0",
+    "tqdm>=4.66.0",
+    "tiktoken>=0.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+]
+v2 = [
+    "python-docx>=1.1.0",
+    "python-pptx>=0.6.23",
+    "paddlepaddle>=2.6.0",
+    "paddleocr>=2.7.0",
+    "cohere>=5.0.0",
+    "ragas>=0.1.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["rag*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: fast, isolated unit tests",
+    "integration: tests that touch real infrastructure (db, disk)",
+    "e2e: end-to-end pipeline tests",
+]

@@ -2532,7 +2532,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 1.4b | Define retrieval-side interface contracts | [x] | 2026-03-22 | BaseEmbeddingProvider, BaseVectorIndex, BaseKeywordIndex, BaseReranker |
 | 1.4c | Define storage and generation interface contracts | [x] | 2026-03-22 | BaseDocStore, BaseTraceStore, BaseLLMClient, BaseContextPacker, BaseAnswerComposer |
 | 1.5 | Add base settings config | [x] | 2026-03-22 | settings.yaml + local_fast/local_quality profiles |
-| 1.6 | Build config loader | [ ] | - | |
+| 1.6 | Build config loader | [x] | 2026-03-22 | load_config with deep merge and profile support |
 
 ### Phase 2 — SQLite Foundation
 
@@ -2684,7 +2684,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase | Total Tasks | Completed | Progress |
 |---|---:|---:|---:|
 | Phase 0 | 3 | 3 | 100% |
-| Phase 1 | 8 | 7 | 88% |
+| Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 0 | 0% |
 | Phase 3 | 16 | 0 | 0% |
 | Phase 4 | 7 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **10** | **12%** |
+| **Total** | **86** | **11** | **13%** |

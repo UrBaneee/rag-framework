@@ -11,6 +11,7 @@ from rag.core.interfaces.embedding import BaseEmbeddingProvider
 from rag.core.interfaces.keyword_index import BaseKeywordIndex
 from rag.core.interfaces.trace_store import BaseTraceStore
 from rag.core.interfaces.vector_index import BaseVectorIndex
+from rag.core.utils.hashing import fingerprint_bytes, make_doc_id
 from rag.infra.cleaning.cleaner_pipeline import CleanerPipeline
 from rag.infra.chunking.block_splitter_paragraph import ParagraphBlockSplitter
 from rag.infra.chunking.chunk_packer_anchor_aware import AnchorAwareChunkPacker
@@ -185,6 +186,21 @@ class IngestPipeline:
         # 1. Load
         artifact = self._loader.load(source_path)
 
+        # 1b. Fingerprint — detect unchanged documents before deep processing
+        content_hash = fingerprint_bytes(artifact.raw_bytes)
+        doc_id = make_doc_id(source_path, content_hash)
+
+        if self._doc_store.document_exists(doc_id):
+            logger.info(
+                "Skipping unchanged document '%s' (doc_id=%s)", source_path, doc_id
+            )
+            return IngestResult(
+                doc_id=doc_id,
+                source_path=source_path,
+                run_id=run_id,
+                skipped=True,
+            )
+
         # 2. Sniff
         sniff_result = self._sniffer.sniff(artifact)
         logger.debug("Detected type: %s", sniff_result.detected_type)
@@ -203,7 +219,12 @@ class IngestPipeline:
                     "; ".join(gate_result.reasons),
                 )
 
-        doc_id = document.doc_id
+        # Override parser's doc_id with fingerprint-based id so the DocStore
+        # lookup in step 1b is consistent across runs.
+        document = document.model_copy(update={
+            "doc_id": doc_id,
+            "metadata": {**document.metadata, "content_hash": content_hash},
+        })
 
         # 5. Store document
         self._doc_store.save_document(document)
@@ -274,4 +295,5 @@ class IngestPipeline:
             chunk_count=len(chunks),
             run_id=run_id,
             embed_tokens=embed_tokens,
+            skipped=False,
         )

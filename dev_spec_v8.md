@@ -2637,7 +2637,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 11.1 | Implement document fingerprint tracking | [ ] | - | |
+| 11.1 | Implement document fingerprint tracking | [x] | 2026-03-23 | hashing.py + early-exit skip in ingest_pipeline |
 | 11.2 | Implement block diff logic | [ ] | - | |
 | 11.3 | Implement resync engine | [ ] | - | |
 | 11.4 | Add threshold guardrails | [ ] | - | |
@@ -2694,9 +2694,9 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 8 | 4 | 4 | 100% |
 | Phase 9 | 3 | 3 | 100% |
 | Phase 10 | 6 | 6 | 100% |
-| Phase 11 | 5 | 0 | 0% |
+| Phase 11 | 5 | 1 | 20% |
 | Phase 12 | 3 | 0 | 0% |
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **64** | **74%** |
+| **Total** | **86** | **65** | **76%** |

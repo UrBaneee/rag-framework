@@ -1,0 +1,22 @@
+# Parse quality gate thresholds.
+# A parsed document must pass all enabled gates to be accepted.
+# Failed gates cause the orchestrator to try the next fallback parser.
+
+gates:
+  # Minimum total character count across all extracted blocks.
+  # Documents below this threshold are likely empty or failed parses.
+  min_char_count:
+    enabled: true
+    threshold: 50
+
+  # Maximum fraction of non-printable characters in the extracted text.
+  # Values above this indicate binary garbage or encoding failures.
+  max_non_printable_ratio:
+    enabled: true
+    threshold: 0.05
+
+  # Maximum fraction of blocks that are exact duplicates of a prior block.
+  # Values above this suggest repeated headers/footers were not removed.
+  max_repetition_score:
+    enabled: true
+    threshold: 0.4

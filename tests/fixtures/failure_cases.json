@@ -1,0 +1,82 @@
+[
+  {
+    "query_id": "fc_01",
+    "query": "What is the capital of France?",
+    "expected_behavior": "abstain",
+    "failure_mode": "insufficient_evidence",
+    "expected_sources": [],
+    "notes": "General knowledge question unrelated to the RAG framework corpus — system should abstain rather than hallucinate."
+  },
+  {
+    "query_id": "fc_02",
+    "query": "Who won the 2023 FIFA World Cup?",
+    "expected_behavior": "abstain",
+    "failure_mode": "insufficient_evidence",
+    "expected_sources": [],
+    "notes": "Sports fact not present in a technical corpus — tests abstain behavior on out-of-domain queries."
+  },
+  {
+    "query_id": "fc_03",
+    "query": "it",
+    "expected_behavior": "abstain",
+    "failure_mode": "ambiguous_query",
+    "expected_sources": [],
+    "notes": "Single pronoun with no referent — completely ambiguous, system should abstain or return no results."
+  },
+  {
+    "query_id": "fc_04",
+    "query": "Tell me about the thing",
+    "expected_behavior": "abstain",
+    "failure_mode": "ambiguous_query",
+    "expected_sources": [],
+    "notes": "Maximally vague query — 'the thing' has no grounded referent in the corpus."
+  },
+  {
+    "query_id": "fc_05",
+    "query": "Is BM25 better than vector search, or is vector search better than BM25?",
+    "expected_behavior": "warn",
+    "failure_mode": "conflicting_evidence",
+    "expected_sources": [],
+    "notes": "Asks for a definitive verdict on a context-dependent trade-off — corpus likely contains arguments for both sides."
+  },
+  {
+    "query_id": "fc_06",
+    "query": "Should I use chunking or not use chunking?",
+    "expected_behavior": "warn",
+    "failure_mode": "conflicting_evidence",
+    "expected_sources": [],
+    "notes": "Binary framing of a nuanced design decision — retrieved passages will present conflicting guidance."
+  },
+  {
+    "query_id": "fc_07",
+    "query": "aaaa bbbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz aaaa bbbbb cccc dddd eeee ffff gggg hhhh iiii jjjj kkkk llll mmmm nnnn oooo pppp qqqq rrrr ssss tttt uuuu vvvv wwww xxxx yyyy zzzz",
+    "expected_behavior": "abstain",
+    "failure_mode": "noisy_input",
+    "expected_sources": [],
+    "notes": "Gibberish token sequence — tests robustness to noise; BM25 should return zero matches."
+  },
+  {
+    "query_id": "fc_08",
+    "query": "Please give me an extremely detailed, comprehensive, exhaustive, step-by-step, fully annotated, citation-rich explanation covering every single aspect of retrieval-augmented generation including its history, all variants, all benchmarks, all implementation details, all failure modes, all edge cases, all deployment patterns, all scaling considerations, all alternative approaches, all related work, all future directions, and also include a comparison with every other information retrieval system ever invented, with no length limit and covering every possible nuance in maximum depth with specific technical detail for every claim",
+    "expected_behavior": "warn",
+    "failure_mode": "oversized_input",
+    "expected_sources": [],
+    "notes": "Extremely long, maximally demanding query — tests token-budget and context-packing limits under oversized input."
+  },
+  {
+    "query_id": "fc_09",
+    "query": "How does the non-existent XYZ-Turbo-9000 retriever module work?",
+    "expected_behavior": "abstain",
+    "failure_mode": "insufficient_evidence",
+    "expected_sources": [],
+    "notes": "References a completely fabricated component name — should return no relevant chunks."
+  },
+  {
+    "query_id": "fc_10",
+    "query": "What did the system say yesterday about the query I ran?",
+    "expected_behavior": "abstain",
+    "failure_mode": "ambiguous_query",
+    "expected_sources": [],
+    "notes": "Refers to implicit session history that does not exist in the corpus — unanswerable without context."
+  }
+]

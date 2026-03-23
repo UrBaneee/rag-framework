@@ -149,6 +149,7 @@ def run_eval(
         relevant: list[str] = entry.get("relevant", [])
         candidates: list[Any] = entry.get("candidates", [])
         qid: str = entry.get("query_id", "")
+        expected_behavior: str = entry.get("expected_behavior", "")
 
         # Retrieval metrics
         r_at_k = recall_at_k(retrieved, relevant, k)
@@ -173,6 +174,10 @@ def run_eval(
         if cand_tok is not None and pack_tok is not None:
             token_savings.append(float(cand_tok) - float(pack_tok))
 
+        # Derive actual behavior from retrieval results:
+        # "answer" if any candidates were retrieved, "abstain" otherwise.
+        actual_behavior = "answer" if retrieved else "abstain"
+
         per_query.append(
             QueryEvalResult(
                 query_id=qid,
@@ -185,6 +190,8 @@ def run_eval(
                 bm25_only_count=bm25_only,
                 vector_only_count=vector_only,
                 both_count=both,
+                expected_behavior=expected_behavior,
+                actual_behavior=actual_behavior,
             )
         )
 

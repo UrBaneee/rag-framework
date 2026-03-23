@@ -1,0 +1,86 @@
+[
+  {
+    "query_id": "eq_01",
+    "query": "What is Retrieval-Augmented Generation?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Foundational definition query — core concept should be retrievable from any RAG-related corpus."
+  },
+  {
+    "query_id": "eq_02",
+    "query": "How does BM25 keyword search work?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Technical query about a named algorithm — should retrieve relevant passages."
+  },
+  {
+    "query_id": "eq_03",
+    "query": "What are the benefits of hybrid retrieval over BM25-only search?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Comparative query combining two known concepts — tests multi-concept retrieval."
+  },
+  {
+    "query_id": "eq_04",
+    "query": "How does Reciprocal Rank Fusion merge results from multiple retrievers?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Specific technical query about the RRF algorithm used in this framework."
+  },
+  {
+    "query_id": "eq_05",
+    "query": "What chunking strategies are used during document ingestion?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Process query — should surface passages about chunk packing and token budgets."
+  },
+  {
+    "query_id": "eq_06",
+    "query": "How does the system handle PDF documents?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Format-specific query — expects parser routing and PDF extraction coverage."
+  },
+  {
+    "query_id": "eq_07",
+    "query": "What is the purpose of the context packer in the query pipeline?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Component-level query — should surface LightContextPacker design details."
+  },
+  {
+    "query_id": "eq_08",
+    "query": "How are citations generated from retrieved chunks?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Output-format query — tests retrieval of citation and answer composition design."
+  },
+  {
+    "query_id": "eq_09",
+    "query": "What metrics are used to evaluate retrieval quality?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Evaluation query — expects Recall@K, MRR, nDCG coverage."
+  },
+  {
+    "query_id": "eq_10",
+    "query": "How does the reranker improve retrieval quality?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Pipeline-step query — tests reranker description retrieval."
+  },
+  {
+    "query_id": "eq_11",
+    "query": "What is the role of the trace store in observability?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Infrastructure query — should surface trace store design passages."
+  },
+  {
+    "query_id": "eq_12",
+    "query": "How does the system detect and remove duplicate chunks?",
+    "expected_behavior": "answer",
+    "expected_sources": [],
+    "notes": "Deduplication query — tests retrieval of cleaning pipeline design."
+  }
+]

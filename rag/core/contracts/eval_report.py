@@ -106,6 +106,8 @@ class QueryEvalResult:
     bm25_only_count: int = 0
     vector_only_count: int = 0
     both_count: int = 0
+    expected_behavior: str = ""   # "answer" | "abstain" | "warn" | ""
+    actual_behavior: str = ""     # derived: "answer" | "abstain"
 
 
 @dataclass

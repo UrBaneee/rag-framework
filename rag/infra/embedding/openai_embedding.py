@@ -11,6 +11,7 @@ else:
     _openai_import_error_msg = ""
 
 from rag.core.interfaces.embedding import BaseEmbeddingProvider
+from rag.core.utils.batching import EmbedBatchAccumulator, iter_batches
 from rag.infra.embedding.base_embedding import EmbeddingResult
 
 logger = logging.getLogger(__name__)
@@ -72,60 +73,30 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
             ValueError: If ``texts`` is empty.
             openai.OpenAIError: On API-level errors.
         """
-        if not texts:
-            raise ValueError("texts must not be empty")
-
-        all_vectors: list[list[float]] = []
-
-        for i in range(0, len(texts), self._batch_size):
-            batch = texts[i : i + self._batch_size]
-            try:
-                response = self._client.embeddings.create(
-                    model=self._model,
-                    input=batch,
-                )
-            except Exception as exc:
-                logger.error(
-                    "OpenAI embeddings API call failed (batch %d–%d): %s",
-                    i,
-                    i + len(batch),
-                    exc,
-                )
-                raise
-
-            # Response items are ordered by index field, not position
-            sorted_data = sorted(response.data, key=lambda item: item.index)
-            all_vectors.extend(item.embedding for item in sorted_data)
-
-            logger.debug(
-                "Embedded batch %d–%d, tokens used: %d",
-                i,
-                i + len(batch),
-                response.usage.prompt_tokens,
-            )
-
-        return all_vectors
+        return self.embed_with_usage(texts).vectors
 
     def embed_with_usage(self, texts: list[str]) -> EmbeddingResult:
-        """Embed texts and return vectors plus token usage.
+        """Embed texts and return vectors plus aggregated token usage.
+
+        Splits ``texts`` into batches of ``batch_size``, calls the API for
+        each batch, and aggregates vectors and token counts.
 
         Args:
             texts: Non-empty list of text strings to embed.
 
         Returns:
-            EmbeddingResult with vectors, model name, and prompt token count.
+            EmbeddingResult with vectors, model name, and total prompt tokens.
 
         Raises:
             ValueError: If ``texts`` is empty.
+            openai.OpenAIError: On API-level errors.
         """
         if not texts:
             raise ValueError("texts must not be empty")
 
-        all_vectors: list[list[float]] = []
-        total_tokens = 0
+        acc = EmbedBatchAccumulator()
 
-        for i in range(0, len(texts), self._batch_size):
-            batch = texts[i : i + self._batch_size]
+        for batch in iter_batches(texts, self._batch_size):
             try:
                 response = self._client.embeddings.create(
                     model=self._model,
@@ -135,12 +106,19 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
                 logger.error("OpenAI embeddings API call failed: %s", exc)
                 raise
 
+            # Response items carry an index field — sort to guarantee order.
             sorted_data = sorted(response.data, key=lambda item: item.index)
-            all_vectors.extend(item.embedding for item in sorted_data)
-            total_tokens += response.usage.prompt_tokens
+            batch_vectors = [item.embedding for item in sorted_data]
+            acc.add(batch_vectors, response.usage.prompt_tokens)
+
+            logger.debug(
+                "Embedded %d text(s), tokens used: %d",
+                len(batch),
+                response.usage.prompt_tokens,
+            )
 
         return EmbeddingResult(
-            vectors=all_vectors,
+            vectors=acc.vectors,
             model=self._model,
-            prompt_tokens=total_tokens,
+            prompt_tokens=acc.total_tokens,
         )

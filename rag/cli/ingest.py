@@ -1,0 +1,98 @@
+"""CLI entry point for document ingestion.
+
+Usage::
+
+    python -m rag.cli.ingest --path document.pdf
+    python -m rag.cli.ingest --path document.pdf --collection my_collection
+"""
+
+import argparse
+import sys
+from pathlib import Path
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="rag.cli.ingest",
+        description="Ingest a document into the RAG framework.",
+    )
+    parser.add_argument(
+        "--path",
+        required=True,
+        type=Path,
+        help="Path to the file to ingest.",
+    )
+    parser.add_argument(
+        "--collection",
+        default="default",
+        help="Target collection name (used to derive the database path). "
+             "Defaults to 'default'.",
+    )
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help="Explicit path to the SQLite database file. "
+             "If omitted, defaults to data/<collection>.db.",
+    )
+    parser.add_argument(
+        "--token-budget",
+        type=int,
+        default=512,
+        help="Approximate token budget per chunk. Defaults to 512.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the ingest CLI.
+
+    Args:
+        argv: Argument list (defaults to sys.argv[1:]).
+
+    Returns:
+        Exit code: 0 on success, 1 on failure.
+    """
+    # Import here to keep startup fast and errors surfaced at call time.
+    from rag.infra.stores.docstore_sqlite import SQLiteDocStore
+    from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+    from rag.pipelines.ingest_pipeline import IngestPipeline
+
+    args = _build_parser().parse_args(argv)
+
+    source_path: Path = args.path.resolve()
+    if not source_path.exists():
+        print(f"Error: file not found: {source_path}", file=sys.stderr)
+        return 1
+
+    db_path: Path = args.db if args.db else Path("data") / f"{args.collection}.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    doc_store = SQLiteDocStore(db_path)
+    trace_store = SQLiteTraceStore(db_path)
+
+    pipeline = IngestPipeline(
+        doc_store=doc_store,
+        trace_store=trace_store,
+        token_budget=args.token_budget,
+    )
+
+    result = pipeline.ingest(source_path)
+
+    if result.error:
+        print(f"Error: ingestion failed for '{source_path.name}'", file=sys.stderr)
+        print(f"  {result.error}", file=sys.stderr)
+        return 1
+
+    elapsed_s = result.elapsed_ms / 1000
+    print(
+        f"Ingested '{source_path.name}' — "
+        f"{result.chunk_count} chunks, "
+        f"{result.block_count} blocks, "
+        f"{elapsed_s:.2f}s"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

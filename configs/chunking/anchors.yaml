@@ -1,0 +1,44 @@
+# Anchor detection rules for the chunk annotator.
+# Rules are evaluated in order; the first match wins.
+# Each rule defines a pattern type and the anchor level/type it produces.
+
+anchors:
+  # Numbered section headings: "1.", "2.1", "3.1.2" etc.
+  - name: numbered_section
+    type: section
+    pattern: "^\\d+(\\.\\d+)*\\.?\\s+\\S"
+    level: 1
+
+  # Markdown/ATX headings: "# Title", "## Sub", "### Sub-sub"
+  - name: heading_h1
+    type: heading
+    pattern: "^#\\s+\\S"
+    level: 1
+
+  - name: heading_h2
+    type: heading
+    pattern: "^##\\s+\\S"
+    level: 2
+
+  - name: heading_h3
+    type: heading
+    pattern: "^###\\s+\\S"
+    level: 3
+
+  # Numbered list items: "1. item", "2. item"
+  - name: ordered_list
+    type: list
+    pattern: "^\\d+\\.\\s+\\S"
+    level: 1
+
+  # Bullet list items: "- item", "* item", "• item"
+  - name: unordered_list
+    type: list
+    pattern: "^[-*•]\\s+\\S"
+    level: 1
+
+  # ALL-CAPS short lines — likely a section title
+  - name: caps_title
+    type: heading
+    pattern: "^[A-Z][A-Z\\s]{2,40}$"
+    level: 2

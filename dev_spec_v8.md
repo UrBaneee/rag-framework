@@ -2569,7 +2569,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
 | 4.1 | Implement base embedding provider + factory | [x] | 2026-03-22 | EmbeddingResult + factory with lazy-import registry |
-| 4.2 | Implement OpenAI embedding provider | [ ] | - | |
+| 4.2 | Implement OpenAI embedding provider | [x] | 2026-03-22 | OpenAIEmbeddingProvider with batch support + EmbeddingResult |
 | 4.3 | Implement embedding batcher | [ ] | - | |
 | 4.4 | Implement BM25 index | [ ] | - | |
 | 4.5 | Implement FAISS vector index | [ ] | - | |
@@ -2687,7 +2687,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
 | Phase 3 | 16 | 16 | 100% |
-| Phase 4 | 7 | 1 | 14% |
+| Phase 4 | 7 | 2 | 29% |
 | Phase 5 | 4 | 0 | 0% |
 | Phase 6 | 4 | 0 | 0% |
 | Phase 7 | 6 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **32** | **37%** |
+| **Total** | **86** | **33** | **38%** |

@@ -1040,7 +1040,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 2.3 — Implement basic DocStore write/read methods
+## Task 2.3 — Implement basic DocStore write/read methods ✅
 **Depends on:** 2.1, 1.3
 
 **Files to modify**
@@ -1059,7 +1059,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 2.4 — Implement basic TraceStore write/read methods
+## Task 2.4 — Implement basic TraceStore write/read methods ✅
 **Depends on:** 2.2, 1.3
 
 **Files to modify**
@@ -1437,7 +1437,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 4.5 — Implement FAISS vector index
+## Task 4.5 — Implement FAISS vector index ✅
 **Depends on:** 4.2, 1.4
 
 **Files to modify**
@@ -1460,7 +1460,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 4.6 — Extend ingest pipeline to embed and index
+## Task 4.6 — Extend ingest pipeline to embed and index ✅
 **Depends on:** 4.3, 4.4, 4.5, 3.12
 
 **Files to modify**
@@ -1477,7 +1477,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 4.7 — Implement index startup loader
+## Task 4.7 — Implement index startup loader ✅
 **Depends on:** 4.4, 4.5
 
 **Files to modify**
@@ -1499,7 +1499,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 # Phase 5 — Retrieval Main Path
 
-## Task 5.1 — Implement retrieval source attribution
+## Task 5.1 — Implement retrieval source attribution ✅
 **Depends on:** 4.4, 4.5, 1.2
 
 **Files to modify**
@@ -1518,7 +1518,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 5.2 — Implement RRF fusion
+## Task 5.2 — Implement RRF fusion ✅
 **Depends on:** 5.1
 
 **Files to modify**
@@ -1535,7 +1535,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 5.3 — Implement query pipeline without rerank
+## Task 5.3 — Implement query pipeline without rerank ✅
 **Depends on:** 4.6, 4.7, 5.2, 2.3, 2.4
 
 **Files to modify**
@@ -1551,7 +1551,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 5.4 — Implement CLI query entry point
+## Task 5.4 — Implement CLI query entry point ✅
 **Depends on:** 5.3
 
 **Files to modify**
@@ -1571,7 +1571,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 # Phase 6 — Reranking
 
-## Task 6.1 — Implement reranker interface and factory
+## Task 6.1 — Implement reranker interface and factory ✅
 **Depends on:** 1.4b
 
 **Files to modify**
@@ -1589,7 +1589,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 6.2 — Implement API cross-encoder reranker
+## Task 6.2 — Implement API cross-encoder reranker ✅
 **Depends on:** 6.1
 
 **Files to modify**
@@ -1606,7 +1606,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 ---
 
-## Task 6.3 — Add rerank stage to query pipeline
+## Task 6.3 — Add rerank stage to query pipeline ✅
 **Depends on:** 6.2, 5.3
 
 **Files to modify**
@@ -1643,7 +1643,7 @@ This task plan is designed to get the **end-to-end main path working first**, th
 
 # Phase 7 — LLM Abstraction and Generation
 
-## Task 7.1 — Implement LLM client interface
+## Task 7.1 — Implement LLM client interface ✅
 **Depends on:** 1.4c
 
 **Files to modify**
@@ -2618,18 +2618,18 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 9.1 | Add MCP tool schemas | [ ] | - | |
-| 9.2 | Implement MCP server wiring | [ ] | - | |
-| 9.3 | End-to-end main path validation | [ ] | - | |
+| 9.1 | Add MCP tool schemas | [x] | 2026-03-23 | commit e9ae213 |
+| 9.2 | Implement MCP server wiring | [x] | 2026-03-23 | commit 7b85958 |
+| 9.3 | End-to-end main path validation | [x] | 2026-03-23 | commit 84e6f10 |
 
 ### Phase 10 — Evaluation
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 10.1 | Implement retrieval metrics | [ ] | - | |
-| 10.2 | Implement source attribution diagnostics | [ ] | - | |
-| 10.3 | Implement system efficiency metrics | [ ] | - | |
-| 10.4 | Implement CLI eval entry point | [ ] | - | |
+| 10.1 | Implement retrieval metrics | [x] | 2026-03-23 | commit c326dc9 |
+| 10.2 | Implement source attribution diagnostics | [x] | 2026-03-23 | commit 25706cd |
+| 10.3 | Implement system efficiency metrics | [x] | 2026-03-23 | commit c775074 |
+| 10.4 | Implement CLI eval entry point | [x] | 2026-03-23 | commit ca05e75 |
 | 10.5 | Build evaluation query suites (example_queries + failure_cases) | [ ] | - | |
 | 10.6 | Build evaluation page | [ ] | - | |
 

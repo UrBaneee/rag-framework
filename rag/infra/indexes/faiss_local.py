@@ -70,6 +70,15 @@ class FaissLocalIndex(BaseVectorIndex):
         self._index = index
         logger.debug("FAISS index rebuilt with %d vectors (dim=%d).", len(self._id_order), dim)
 
+    # ── Public properties ─────────────────────────────────────────────────────
+
+    @property
+    def dimension(self) -> int:
+        """Vector dimension of the current index, or 0 if the index is empty."""
+        if self._index is None:
+            return 0
+        return self._index.d
+
     # ── BaseVectorIndex ───────────────────────────────────────────────────────
 
     def add(self, chunks: list[Chunk]) -> None:

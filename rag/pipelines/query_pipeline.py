@@ -18,6 +18,7 @@ from rag.core.contracts.citation import Citation
 from rag.core.interfaces.doc_store import BaseDocStore
 from rag.core.interfaces.embedding import BaseEmbeddingProvider
 from rag.core.interfaces.keyword_index import BaseKeywordIndex
+from rag.core.interfaces.reranker import BaseReranker
 from rag.core.interfaces.trace_store import BaseTraceStore
 from rag.core.interfaces.vector_index import BaseVectorIndex
 from rag.infra.indexes.rrf_fusion import RRFFusion
@@ -160,10 +161,11 @@ class QueryPipeline:
     """Hybrid retrieval query pipeline — BM25 + vector → RRF → citations.
 
     Runs BM25 and (optionally) vector search, merges results with source
-    attribution, fuses using RRF, and returns ranked candidates with
-    citations. Does not perform LLM generation (added in a later phase).
+    attribution, fuses using RRF, optionally reranks, and returns ranked
+    candidates with citations. LLM generation is added in a later phase.
 
-    Query run metadata is recorded in the TraceStore for observability.
+    Query run metadata — including pre- and post-rerank candidate order —
+    is recorded in the TraceStore for observability.
 
     Usage::
 
@@ -172,6 +174,7 @@ class QueryPipeline:
             vector_index=faiss,
             embedding_provider=provider,
             trace_store=trace_store,
+            reranker=NoOpReranker(),
         )
         result = pipeline.query("What is retrieval augmented generation?")
 
@@ -182,6 +185,8 @@ class QueryPipeline:
             only BM25 retrieval is performed.
         embedding_provider: Used to embed the query for vector search.
             Required when ``vector_index`` is provided.
+        reranker: Optional reranker applied after RRF fusion. When None,
+            no reranking is performed and ``final_score = rrf_score``.
         top_k: Number of candidates to retrieve per index. Defaults to 10.
         rrf_k: Smoothing constant for RRF fusion. Defaults to 60.
     """
@@ -192,12 +197,14 @@ class QueryPipeline:
         trace_store: BaseTraceStore,
         vector_index: Optional[BaseVectorIndex] = None,
         embedding_provider: Optional[BaseEmbeddingProvider] = None,
+        reranker: Optional[BaseReranker] = None,
         top_k: int = 10,
         rrf_k: int = 60,
     ) -> None:
         self._keyword_index = keyword_index
         self._vector_index = vector_index
         self._embedding_provider = embedding_provider
+        self._reranker = reranker
         self._trace_store = trace_store
         self._top_k = top_k
         self._fusion = RRFFusion(k=rrf_k)
@@ -267,16 +274,52 @@ class QueryPipeline:
         else:
             fused = []
 
-        # 5. Build citations
-        citations = _build_citations(fused)
+        # 5. Record pre-rerank order in trace
+        pre_rerank_ids = [c.chunk_id for c in fused]
+        self._trace_store.save_run(
+            run_type="query_pre_rerank",
+            metadata={
+                "run_id": run_id,
+                "query": query,
+                "pre_rerank_chunk_ids": pre_rerank_ids,
+                "candidate_count": len(fused),
+            },
+        )
+
+        # 6. Optional rerank stage
+        final_candidates = fused
+        if self._reranker is not None and fused:
+            final_candidates = self._reranker.rerank(query, fused, top_k=self._top_k)
+            post_rerank_ids = [c.chunk_id for c in final_candidates]
+            self._trace_store.save_run(
+                run_type="query_post_rerank",
+                metadata={
+                    "run_id": run_id,
+                    "query": query,
+                    "post_rerank_chunk_ids": post_rerank_ids,
+                    "reranker": type(self._reranker).__name__,
+                },
+            )
+            logger.debug(
+                "Reranked %d → %d candidates via %s.",
+                len(fused),
+                len(final_candidates),
+                type(self._reranker).__name__,
+            )
+
+        # 7. Build citations
+        citations = _build_citations(final_candidates)
 
         logger.info(
-            "Query '%s': %d candidates after fusion (run=%s)", query, len(fused), run_id
+            "Query '%s': %d candidates after fusion+rerank (run=%s)",
+            query,
+            len(final_candidates),
+            run_id,
         )
 
         return QueryResult(
             query=query,
-            candidates=fused,
+            candidates=final_candidates,
             citations=citations,
             run_id=run_id,
         )

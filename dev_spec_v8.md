@@ -2554,7 +2554,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 3.5 | Implement HTML parser | [x] | 2026-03-22 | HtmlTrafilaturaParser strips boilerplate |
 | 3.6 | Implement PDF text parser | [x] | 2026-03-22 | PdfPyMuPDFParser with page numbers |
 | 3.7 | Implement parse quality gates | [x] | 2026-03-22 | QualityGateChecker with YAML thresholds |
-| 3.8a | Implement unicode_fix + empty_filter cleaners | [ ] | - | |
+| 3.8a | Implement unicode_fix + empty_filter cleaners | [x] | 2026-03-22 | UnicodeFixer + EmptyBlockFilter cleaners |
 | 3.8b | Implement dedupe + PDF header/footer cleaners | [ ] | - | |
 | 3.8c | Implement HTML nav/footer + OCR line merge cleaners | [ ] | - | |
 | 3.8d | Wire cleaner pipeline | [ ] | - | |
@@ -2686,7 +2686,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 0 | 3 | 3 | 100% |
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
-| Phase 3 | 16 | 7 | 44% |
+| Phase 3 | 16 | 8 | 50% |
 | Phase 4 | 7 | 0 | 0% |
 | Phase 5 | 4 | 0 | 0% |
 | Phase 6 | 4 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **22** | **26%** |
+| **Total** | **86** | **23** | **27%** |

@@ -2631,7 +2631,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 10.3 | Implement system efficiency metrics | [x] | 2026-03-23 | commit c775074 |
 | 10.4 | Implement CLI eval entry point | [x] | 2026-03-23 | commit ca05e75 |
 | 10.5 | Build evaluation query suites (example_queries + failure_cases) | [x] | 2026-03-23 | 12 example + 10 failure cases, expected/actual behavior tracking |
-| 10.6 | Build evaluation page | [ ] | - | |
+| 10.6 | Build evaluation page | [x] | 2026-03-23 | 3-tab page, metrics_table + metric_glossary components |
 
 ### Phase 11 — Incremental Ingestion Refinement
 
@@ -2693,10 +2693,10 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 7 | 6 | 6 | 100% |
 | Phase 8 | 4 | 4 | 100% |
 | Phase 9 | 3 | 3 | 100% |
-| Phase 10 | 6 | 5 | 83% |
+| Phase 10 | 6 | 6 | 100% |
 | Phase 11 | 5 | 0 | 0% |
 | Phase 12 | 3 | 0 | 0% |
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **63** | **73%** |
+| **Total** | **86** | **64** | **74%** |

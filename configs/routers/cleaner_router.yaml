@@ -1,0 +1,25 @@
+# Cleaner pipeline configuration.
+# Steps are executed in the order listed below.
+# Set enabled: false to skip a step without removing it from the config.
+
+steps:
+  - name: unicode_fix
+    enabled: true
+
+  - name: empty_filter
+    enabled: true
+    min_chars: 1
+
+  - name: ocr_line_merge
+    enabled: true
+    short_line_threshold: 80
+
+  - name: html_nav_footer_remove
+    enabled: true
+
+  - name: pdf_header_footer_dedupe
+    enabled: true
+    page_fraction_threshold: 0.5
+
+  - name: dedupe_paragraphs
+    enabled: true

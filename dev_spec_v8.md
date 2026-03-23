@@ -2557,7 +2557,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 3.8a | Implement unicode_fix + empty_filter cleaners | [x] | 2026-03-22 | UnicodeFixer + EmptyBlockFilter cleaners |
 | 3.8b | Implement dedupe + PDF header/footer cleaners | [x] | 2026-03-22 | DedupeParagraphs + PdfHeaderFooterDedupe |
 | 3.8c | Implement HTML nav/footer + OCR line merge cleaners | [x] | 2026-03-22 | HtmlNavFooterRemover + OcrLineMerger |
-| 3.8d | Wire cleaner pipeline | [ ] | - | |
+| 3.8d | Wire cleaner pipeline | [x] | 2026-03-22 | CleanerPipeline wires all 6 steps via YAML |
 | 3.9 | Implement paragraph block splitter | [ ] | - | |
 | 3.10 | Implement anchor annotator | [ ] | - | |
 | 3.11 | Implement chunk packer | [ ] | - | |
@@ -2686,7 +2686,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 0 | 3 | 3 | 100% |
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
-| Phase 3 | 16 | 10 | 63% |
+| Phase 3 | 16 | 11 | 69% |
 | Phase 4 | 7 | 0 | 0% |
 | Phase 5 | 4 | 0 | 0% |
 | Phase 6 | 4 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **25** | **29%** |
+| **Total** | **86** | **26** | **30%** |

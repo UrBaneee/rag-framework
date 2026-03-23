@@ -2561,7 +2561,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 3.9 | Implement paragraph block splitter | [x] | 2026-03-22 | ParagraphBlockSplitter with stable block_hash |
 | 3.10 | Implement anchor annotator | [x] | 2026-03-22 | AnchorAnnotator with YAML rules |
 | 3.11 | Implement chunk packer | [x] | 2026-03-22 | AnchorAwareChunkPacker with token budget |
-| 3.12 | Implement minimal ingest pipeline | [ ] | - | |
+| 3.12 | Implement minimal ingest pipeline | [x] | 2026-03-22 | IngestPipeline end-to-end for TXT/MD/HTML/PDF |
 | 3.13 | Implement CLI ingest entry point | [ ] | - | |
 
 ### Phase 4 — Embedding and Indexes
@@ -2686,7 +2686,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 0 | 3 | 3 | 100% |
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
-| Phase 3 | 16 | 14 | 88% |
+| Phase 3 | 16 | 15 | 94% |
 | Phase 4 | 7 | 0 | 0% |
 | Phase 5 | 4 | 0 | 0% |
 | Phase 6 | 4 | 0 | 0% |
@@ -2699,4 +2699,4 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **29** | **34%** |
+| **Total** | **86** | **30** | **35%** |

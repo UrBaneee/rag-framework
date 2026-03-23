@@ -68,11 +68,13 @@ class PdfHeaderFooterDedupe(BaseCleaner):
             if key:
                 text_to_pages.setdefault(key, set()).add(block.page)  # type: ignore[arg-type]
 
-        # Identify texts that appear on >= threshold fraction of pages
+        # Identify texts that appear on strictly more than threshold fraction of pages.
+        # Using > (not >=) avoids removing content that appears on exactly half the
+        # pages in a two-page document, which is almost certainly not a header/footer.
         repeating: set[str] = {
             text
             for text, pages in text_to_pages.items()
-            if len(pages) / total_pages >= self._threshold
+            if len(pages) / total_pages > self._threshold
         }
 
         if not repeating:

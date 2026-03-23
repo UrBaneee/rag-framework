@@ -1,0 +1,213 @@
+"""Minimal ingest pipeline — end-to-end document ingestion from file to storage."""
+
+import logging
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from rag.core.interfaces.doc_store import BaseDocStore
+from rag.core.interfaces.trace_store import BaseTraceStore
+from rag.infra.cleaning.cleaner_pipeline import CleanerPipeline
+from rag.infra.chunking.block_splitter_paragraph import ParagraphBlockSplitter
+from rag.infra.chunking.chunk_packer_anchor_aware import AnchorAwareChunkPacker
+from rag.infra.loading.local_file_loader import LocalFileLoader
+from rag.infra.parsing.html_trafilatura import HtmlTrafilaturaParser
+from rag.infra.parsing.md_parser import MdParser
+from rag.infra.parsing.pdf_pymupdf import PdfPyMuPDFParser
+from rag.infra.sniffing.composite_sniffer import CompositeSniffer
+from rag.pipelines.parsing.orchestrator import ParserOrchestrator
+from rag.pipelines.parsing.quality_gates import QualityGateChecker
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class IngestResult:
+    """Summary of a completed ingest run.
+
+    Attributes:
+        doc_id: Identifier of the stored document.
+        source_path: Absolute path to the ingested file.
+        block_count: Number of TextBlocks stored.
+        chunk_count: Number of Chunks stored.
+        run_id: TraceStore run identifier.
+        elapsed_ms: Total wall-clock time in milliseconds.
+        skipped: True if the document was already up-to-date and skipped.
+        error: Error message if ingestion failed, or None on success.
+    """
+
+    doc_id: str
+    source_path: str
+    block_count: int = 0
+    chunk_count: int = 0
+    run_id: str = ""
+    elapsed_ms: float = 0.0
+    skipped: bool = False
+    error: str | None = None
+
+
+class IngestPipeline:
+    """End-to-end document ingestion pipeline.
+
+    Connects all ingestion components in sequence:
+    Loader → Sniffer → Router → Parser → Quality Gate →
+    Cleaner → Block Splitter → Chunk Packer → DocStore + TraceStore
+
+    Usage::
+
+        doc_store = SQLiteDocStore("data/rag.db")
+        trace_store = SQLiteTraceStore("data/rag.db")
+        pipeline = IngestPipeline(doc_store, trace_store)
+        result = pipeline.ingest("/path/to/document.pdf")
+
+    Args:
+        doc_store: DocStore implementation for persisting documents and chunks.
+        trace_store: TraceStore implementation for recording run metadata.
+        token_budget: Maximum approximate tokens per chunk. Defaults to 512.
+        cleaner_config_path: Path to cleaner_router.yaml. None = auto-detect.
+        router_config_path: Path to parser_candidates.yaml. None = auto-detect.
+        quality_gate_config_path: Path to quality_gates.yaml. None = auto-detect.
+        anchor_config_path: Path to anchors.yaml. None = auto-detect.
+    """
+
+    def __init__(
+        self,
+        doc_store: BaseDocStore,
+        trace_store: BaseTraceStore,
+        token_budget: int = 512,
+        cleaner_config_path: str | Path | None = None,
+        router_config_path: str | Path | None = None,
+        quality_gate_config_path: str | Path | None = None,
+        anchor_config_path: str | Path | None = None,
+    ) -> None:
+        self._doc_store = doc_store
+        self._trace_store = trace_store
+
+        self._loader = LocalFileLoader()
+        self._sniffer = CompositeSniffer()
+
+        parser_registry = {
+            "pymupdf": PdfPyMuPDFParser(),
+            "trafilatura": HtmlTrafilaturaParser(),
+            "md_parser": MdParser(),
+        }
+        self._orchestrator = ParserOrchestrator(
+            parser_registry, router_config_path=router_config_path
+        )
+        self._quality_gate = QualityGateChecker(config_path=quality_gate_config_path)
+        self._cleaner = CleanerPipeline(config_path=cleaner_config_path)
+        self._splitter = ParagraphBlockSplitter()
+        self._packer = AnchorAwareChunkPacker(
+            token_budget=token_budget,
+            annotator_config_path=anchor_config_path,
+        )
+
+    def ingest(self, source_path: str | Path) -> IngestResult:
+        """Ingest a single document file end-to-end.
+
+        Args:
+            source_path: Path to the file to ingest.
+
+        Returns:
+            IngestResult summarising the outcome.
+        """
+        source_path = str(Path(source_path).resolve())
+        start = time.monotonic()
+
+        run_id = self._trace_store.save_run(
+            run_type="ingest",
+            metadata={"source_path": source_path},
+        )
+
+        try:
+            result = self._run(source_path, run_id)
+        except Exception as exc:
+            logger.exception("Ingest failed for '%s': %s", source_path, exc)
+            result = IngestResult(
+                doc_id="",
+                source_path=source_path,
+                run_id=run_id,
+                error=str(exc),
+            )
+
+        result.elapsed_ms = (time.monotonic() - start) * 1000
+        self._trace_store.save_run(
+            run_type="ingest_complete",
+            metadata={
+                "source_path": source_path,
+                "run_id": run_id,
+                "doc_id": result.doc_id,
+                "block_count": result.block_count,
+                "chunk_count": result.chunk_count,
+                "elapsed_ms": result.elapsed_ms,
+                "error": result.error,
+            },
+        )
+        return result
+
+    def _run(self, source_path: str, run_id: str) -> IngestResult:
+        """Internal pipeline execution — all stages.
+
+        Args:
+            source_path: Resolved absolute path to the source file.
+            run_id: TraceStore run identifier.
+
+        Returns:
+            Populated IngestResult on success.
+
+        Raises:
+            Exception: On any unrecoverable pipeline error.
+        """
+        # 1. Load
+        artifact = self._loader.load(source_path)
+
+        # 2. Sniff
+        sniff_result = self._sniffer.sniff(artifact)
+        logger.debug("Detected type: %s", sniff_result.detected_type)
+
+        # 3. Route + Parse
+        plan = self._orchestrator.route(sniff_result)
+        document = self._orchestrator.parse(artifact, plan)
+
+        # 4. Quality gate
+        if document.parse_report:
+            gate_result = self._quality_gate.check(document.parse_report)
+            if not gate_result.passed:
+                logger.warning(
+                    "Quality gate failed for '%s': %s",
+                    source_path,
+                    "; ".join(gate_result.reasons),
+                )
+
+        doc_id = document.doc_id
+
+        # 5. Store document
+        self._doc_store.save_document(document)
+
+        # 6. Clean
+        cleaned_blocks = self._cleaner.run(document.blocks)
+
+        # 7. Split into TextBlocks
+        text_blocks = self._splitter.split(doc_id, cleaned_blocks)
+        self._doc_store.save_text_blocks(text_blocks)
+
+        # 8. Pack into Chunks
+        chunks = self._packer.pack(text_blocks)
+        self._doc_store.save_chunks(chunks)
+
+        logger.info(
+            "Ingested '%s': %d blocks, %d chunks (run=%s)",
+            source_path,
+            len(text_blocks),
+            len(chunks),
+            run_id,
+        )
+
+        return IngestResult(
+            doc_id=doc_id,
+            source_path=source_path,
+            block_count=len(text_blocks),
+            chunk_count=len(chunks),
+            run_id=run_id,
+        )

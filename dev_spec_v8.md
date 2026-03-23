@@ -2572,47 +2572,47 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 4.2 | Implement OpenAI embedding provider | [x] | 2026-03-22 | OpenAIEmbeddingProvider with batch support + EmbeddingResult |
 | 4.3 | Implement embedding batcher | [x] | 2026-03-22 | iter_batches + EmbedBatchAccumulator in core/utils/batching.py |
 | 4.4 | Implement BM25 index | [x] | 2026-03-22 | BM25LocalIndex with add/search/save/load/remove |
-| 4.5 | Implement FAISS vector index | [ ] | - | |
-| 4.6 | Extend ingest pipeline to embed and index | [ ] | - | |
-| 4.7 | Implement index startup loader | [ ] | - | |
+| 4.5 | Implement FAISS vector index | [x] | 2026-03-22 | commit 6f3a764 |
+| 4.6 | Extend ingest pipeline to embed and index | [x] | 2026-03-22 | commit 894aeb4 |
+| 4.7 | Implement index startup loader | [x] | 2026-03-22 | commit db1e8ba |
 
 ### Phase 5 — Retrieval Main Path
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 5.1 | Implement retrieval source attribution | [ ] | - | |
-| 5.2 | Implement RRF fusion | [ ] | - | |
-| 5.3 | Implement query pipeline without rerank | [ ] | - | |
-| 5.4 | Implement CLI query entry point | [ ] | - | |
+| 5.1 | Implement retrieval source attribution | [x] | 2026-03-22 | commit 7f5a411 |
+| 5.2 | Implement RRF fusion | [x] | 2026-03-22 | commit 4dbb8e0 |
+| 5.3 | Implement query pipeline without rerank | [x] | 2026-03-22 | commit a252820 |
+| 5.4 | Implement CLI query entry point | [x] | 2026-03-22 | commit 5ce700e |
 
 ### Phase 6 — Reranking
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 6.1 | Implement reranker interface and factory | [ ] | - | |
-| 6.2 | Implement API cross-encoder reranker | [ ] | - | |
-| 6.3 | Add rerank stage to query pipeline | [ ] | - | |
+| 6.1 | Implement reranker interface and factory | [x] | 2026-03-22 | commit 2dff20b |
+| 6.2 | Implement API cross-encoder reranker | [x] | 2026-03-22 | commit b572713 |
+| 6.3 | Add rerank stage to query pipeline | [x] | 2026-03-22 | commit c613812 |
 | 6.4 | Add optional LLM rerank stage (V2) | [ ] | - | |
 
 ### Phase 7 — LLM Abstraction and Generation
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 7.1 | Implement LLM client interface | [ ] | - | |
-| 7.2 | Implement OpenAI LLM client | [ ] | - | |
-| 7.3 | Implement light context packer | [ ] | - | |
-| 7.4 | Implement grounded prompt builder | [ ] | - | |
-| 7.5 | Implement answer composer | [ ] | - | |
-| 7.6 | Add generation stage to query pipeline | [ ] | - | |
+| 7.1 | Implement LLM client interface | [x] | 2026-03-22 | commit 41d133c |
+| 7.2 | Implement OpenAI LLM client | [x] | 2026-03-22 | commit d9d084e |
+| 7.3 | Implement light context packer | [x] | 2026-03-22 | commit 7e2c5db |
+| 7.4 | Implement grounded prompt builder | [x] | 2026-03-22 | commit 53c3723 |
+| 7.5 | Implement answer composer | [x] | 2026-03-22 | commit f59d003 |
+| 7.6 | Add generation stage to query pipeline | [x] | 2026-03-22 | commit a5ba27a |
 
 ### Phase 8 — Streamlit Main Path
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 8.1 | Create Streamlit app shell | [ ] | - | |
-| 8.2 | Build ingestion manager page | [ ] | - | |
-| 8.3 | Build ingestion trace page | [ ] | - | |
-| 8.4 | Build query trace page | [ ] | - | |
+| 8.1 | Create Streamlit app shell | [x] | 2026-03-23 | commit 2c00763 |
+| 8.2 | Build ingestion manager page | [x] | 2026-03-23 | commit 1239e13 |
+| 8.3 | Build ingestion trace page | [x] | 2026-03-23 | commit 5895822 |
+| 8.4 | Build query trace page | [x] | 2026-03-23 | commit e9ae213 |
 
 ### Phase 9 — MCP Main Path
 
@@ -2687,16 +2687,16 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 1 | 8 | 8 | 100% |
 | Phase 2 | 4 | 4 | 100% |
 | Phase 3 | 16 | 16 | 100% |
-| Phase 4 | 7 | 4 | 57% |
-| Phase 5 | 4 | 0 | 0% |
-| Phase 6 | 4 | 0 | 0% |
-| Phase 7 | 6 | 0 | 0% |
-| Phase 8 | 4 | 0 | 0% |
-| Phase 9 | 3 | 0 | 0% |
-| Phase 10 | 6 | 0 | 0% |
+| Phase 4 | 7 | 7 | 100% |
+| Phase 5 | 4 | 4 | 100% |
+| Phase 6 | 4 | 3 | 75% |
+| Phase 7 | 6 | 6 | 100% |
+| Phase 8 | 4 | 4 | 100% |
+| Phase 9 | 3 | 3 | 100% |
+| Phase 10 | 6 | 4 | 67% |
 | Phase 11 | 5 | 0 | 0% |
 | Phase 12 | 3 | 0 | 0% |
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **35** | **41%** |
+| **Total** | **86** | **62** | **72%** |

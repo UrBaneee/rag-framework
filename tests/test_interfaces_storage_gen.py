@@ -39,7 +39,8 @@ def test_base_trace_store_is_abstract():
 @pytest.mark.unit
 def test_base_llm_client_is_abstract():
     assert inspect.isabstract(BaseLLMClient)
-    assert "complete" in BaseLLMClient.__abstractmethods__
+    # complete() is a concrete convenience wrapper around generate(); not abstract
+    assert "generate" in BaseLLMClient.__abstractmethods__
     assert "count_tokens" in BaseLLMClient.__abstractmethods__
     assert "model" in BaseLLMClient.__abstractmethods__
 

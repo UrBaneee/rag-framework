@@ -53,8 +53,8 @@ def build_ingest_pipeline(
             dimensions=vector_dimension,
         )
         mgr = IndexManager(index_dir=index_dir)
-        vec_index = mgr.vector_index
-        kw_index = mgr.keyword_index
+        vec_index = mgr.faiss
+        kw_index = mgr.bm25
 
     return IngestPipeline(
         doc_store=doc_store,
@@ -113,7 +113,7 @@ def build_query_pipeline(
             model=embedding_model,
             dimensions=vector_dimension,
         )
-        vec_index = mgr.vector_index
+        vec_index = mgr.faiss
 
     composer = None
     if enable_generation:
@@ -127,7 +127,7 @@ def build_query_pipeline(
         )
 
     return QueryPipeline(
-        keyword_index=mgr.keyword_index,
+        keyword_index=mgr.bm25,
         trace_store=trace_store,
         vector_index=vec_index,
         embedding_provider=embed_provider,

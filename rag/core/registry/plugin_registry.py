@@ -92,3 +92,11 @@ def _ensure_builtins_registered() -> None:
     if "noop" not in _RERANKER_REGISTRY:
         from rag.infra.rerank.noop import NoOpReranker
         register_reranker("noop", NoOpReranker)
+
+    if "voyage" not in _RERANKER_REGISTRY:
+        try:
+            from rag.infra.rerank.voyage_rerank import VoyageReranker
+            register_reranker("voyage", VoyageReranker)
+        except ImportError:
+            # voyageai not installed — voyage provider silently unavailable
+            pass

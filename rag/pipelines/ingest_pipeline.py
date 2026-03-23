@@ -11,7 +11,7 @@ from rag.core.interfaces.embedding import BaseEmbeddingProvider
 from rag.core.interfaces.keyword_index import BaseKeywordIndex
 from rag.core.interfaces.trace_store import BaseTraceStore
 from rag.core.interfaces.vector_index import BaseVectorIndex
-from rag.core.utils.hashing import fingerprint_bytes, make_doc_id
+from rag.core.utils.hashing import BlockDiffResult, diff_blocks, fingerprint_bytes, make_doc_id
 from rag.infra.cleaning.cleaner_pipeline import CleanerPipeline
 from rag.infra.chunking.block_splitter_paragraph import ParagraphBlockSplitter
 from rag.infra.chunking.chunk_packer_anchor_aware import AnchorAwareChunkPacker
@@ -50,6 +50,11 @@ class IngestResult:
     embed_tokens: int = 0
     skipped: bool = False
     error: str | None = None
+    # Block diff stats — populated when a previous version exists (Task 11.2)
+    blocks_added: int = 0
+    blocks_removed: int = 0
+    blocks_unchanged: int = 0
+    diff_available: bool = False
 
 
 class IngestPipeline:
@@ -234,6 +239,23 @@ class IngestPipeline:
 
         # 7. Split into TextBlocks
         text_blocks = self._splitter.split(doc_id, cleaned_blocks)
+
+        # 7b. Block diff — compare new blocks against the previous version
+        block_diff: BlockDiffResult | None = None
+        if hasattr(self._doc_store, "get_prev_blocks_for_source"):
+            prev_blocks = self._doc_store.get_prev_blocks_for_source(source_path)  # type: ignore[attr-defined]
+            if prev_blocks:
+                old_hashes = [b.block_hash for b in prev_blocks]
+                new_hashes = [b.block_hash for b in text_blocks]
+                block_diff = diff_blocks(old_hashes, new_hashes)
+                logger.debug(
+                    "Block diff for '%s': +%d added, -%d removed, %d unchanged",
+                    source_path,
+                    block_diff.added_count,
+                    block_diff.removed_count,
+                    block_diff.unchanged_count,
+                )
+
         self._doc_store.save_text_blocks(text_blocks)
 
         # 8. Pack into Chunks
@@ -296,4 +318,8 @@ class IngestPipeline:
             run_id=run_id,
             embed_tokens=embed_tokens,
             skipped=False,
+            blocks_added=block_diff.added_count if block_diff else 0,
+            blocks_removed=block_diff.removed_count if block_diff else 0,
+            blocks_unchanged=block_diff.unchanged_count if block_diff else 0,
+            diff_available=block_diff is not None,
         )

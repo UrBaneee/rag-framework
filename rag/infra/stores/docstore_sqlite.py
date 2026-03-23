@@ -296,6 +296,28 @@ class SQLiteDocStore(BaseDocStore):
             for row in rows
         ]
 
+    def get_prev_blocks_for_source(self, source_path: str) -> list[TextBlock]:
+        """Fetch blocks for the most recently stored version of a source path.
+
+        Used by the incremental ingestion block diff logic (Task 11.2) to
+        compare the previous document version against the newly ingested one.
+
+        Args:
+            source_path: Absolute path to the source file.
+
+        Returns:
+            Ordered list of TextBlocks for the previous version, or empty list
+            if no previous version exists.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT doc_id FROM documents WHERE source_path = ? ORDER BY rowid DESC LIMIT 1",
+                (source_path,),
+            ).fetchone()
+        if row is None:
+            return []
+        return self.get_text_blocks(row["doc_id"])
+
     # ── Chunks ─────────────────────────────────────────────────────────────────
 
     def save_chunks(self, chunks: list[Chunk]) -> None:

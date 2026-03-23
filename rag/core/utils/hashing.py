@@ -1,4 +1,4 @@
-"""Deterministic hashing utilities for incremental ingestion — Task 11.1.
+"""Deterministic hashing utilities for incremental ingestion — Tasks 11.1–11.2.
 
 All identity functions live here so block hashes, chunk signatures, and
 document fingerprints are computed consistently across every pipeline stage.
@@ -19,15 +19,18 @@ Usage::
         block_hash,
         chunk_signature,
         make_doc_id,
+        diff_blocks,
     )
 
     fp = file_fingerprint("/path/to/doc.pdf")
     doc_id = make_doc_id("/path/to/doc.pdf", fp)
+    result = diff_blocks(old_hashes, new_hashes)
 """
 
 from __future__ import annotations
 
 import hashlib
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -155,3 +158,82 @@ def make_doc_id(source_path: str, content_hash: str) -> str:
     """
     combined = f"{source_path}:{content_hash}"
     return hashlib.sha256(combined.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Block diff
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BlockDiffResult:
+    """Result of comparing old vs new block hash sequences.
+
+    Attributes:
+        unchanged: Block hashes present in both old and new sequences.
+        added: Block hashes present only in the new sequence.
+        removed: Block hashes present only in the old sequence.
+    """
+
+    unchanged: list[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list)
+
+    @property
+    def unchanged_count(self) -> int:
+        """Number of unchanged blocks."""
+        return len(self.unchanged)
+
+    @property
+    def added_count(self) -> int:
+        """Number of added blocks."""
+        return len(self.added)
+
+    @property
+    def removed_count(self) -> int:
+        """Number of removed blocks."""
+        return len(self.removed)
+
+    @property
+    def total_new(self) -> int:
+        """Total blocks in the new version."""
+        return len(self.unchanged) + len(self.added)
+
+    @property
+    def has_changes(self) -> bool:
+        """True if any blocks were added or removed."""
+        return bool(self.added or self.removed)
+
+
+def diff_blocks(
+    old_hashes: list[str],
+    new_hashes: list[str],
+) -> BlockDiffResult:
+    """Classify block hashes as unchanged, added, or removed.
+
+    Comparison is set-based: a block is *unchanged* if its hash appears in
+    both sequences, *added* if it is new-only, *removed* if it is old-only.
+    Duplicate hashes within the same sequence are deduplicated before
+    comparison so that re-ordered identical blocks do not inflate counts.
+
+    Args:
+        old_hashes: Ordered list of block hashes from the previous version.
+        new_hashes: Ordered list of block hashes from the new version.
+
+    Returns:
+        ``BlockDiffResult`` with three classified lists.
+
+    Examples:
+        >>> r = diff_blocks(["a", "b", "c"], ["a", "b", "d"])
+        >>> r.unchanged  # ["a", "b"]
+        >>> r.added      # ["d"]
+        >>> r.removed    # ["c"]
+    """
+    old_set = set(old_hashes)
+    new_set = set(new_hashes)
+
+    unchanged = [h for h in new_hashes if h in old_set]
+    added = [h for h in new_hashes if h not in old_set]
+    removed = [h for h in old_hashes if h not in new_set]
+
+    return BlockDiffResult(unchanged=unchanged, added=added, removed=removed)

@@ -51,3 +51,26 @@ class Candidate(BaseModel):
     final_score: float = Field(default=0.0)
     retrieval_source: RetrievalSource = RetrievalSource.HYBRID
     metadata: dict = Field(default_factory=dict)
+
+    @property
+    def source_label(self) -> str:
+        """Human-readable source attribution label.
+
+        Returns one of:
+        - ``"bm25_only"``   — retrieved by BM25 only
+        - ``"vector_only"`` — retrieved by vector search only
+        - ``"both"``        — retrieved by both BM25 and vector search
+
+        Returns:
+            Attribution string derived from which score fields are populated.
+        """
+        has_bm25 = self.bm25_score is not None
+        has_vec = self.vector_score is not None
+        if has_bm25 and has_vec:
+            return "both"
+        if has_bm25:
+            return "bm25_only"
+        if has_vec:
+            return "vector_only"
+        # Fallback: use retrieval_source enum value
+        return self.retrieval_source.value

@@ -13,8 +13,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from rag.core.contracts.answer import Answer
 from rag.core.contracts.candidate import Candidate, RetrievalSource
 from rag.core.contracts.citation import Citation
+from rag.core.contracts.trace import AnswerTrace
 from rag.core.interfaces.doc_store import BaseDocStore
 from rag.core.interfaces.embedding import BaseEmbeddingProvider
 from rag.core.interfaces.keyword_index import BaseKeywordIndex
@@ -39,6 +41,8 @@ class QueryResult:
         query: The original query string.
         candidates: RRF-fused and ranked candidates (top_k).
         citations: Citation objects derived from the top candidates.
+        answer: Generated Answer (populated when an answer_composer is wired in).
+        answer_trace: AnswerTrace with token counts and per-step latency.
         run_id: TraceStore run identifier for observability.
         elapsed_ms: Total wall-clock time in milliseconds.
         error: Error message if the query failed, or None on success.
@@ -47,6 +51,8 @@ class QueryResult:
     query: str
     candidates: list[Candidate] = field(default_factory=list)
     citations: list[Citation] = field(default_factory=list)
+    answer: Optional[Answer] = None
+    answer_trace: Optional[AnswerTrace] = None
     run_id: str = ""
     elapsed_ms: float = 0.0
     error: Optional[str] = None
@@ -161,11 +167,11 @@ class QueryPipeline:
     """Hybrid retrieval query pipeline — BM25 + vector → RRF → citations.
 
     Runs BM25 and (optionally) vector search, merges results with source
-    attribution, fuses using RRF, optionally reranks, and returns ranked
-    candidates with citations. LLM generation is added in a later phase.
+    attribution, fuses using RRF, optionally reranks, and optionally generates
+    a grounded answer via an LLM composer.
 
-    Query run metadata — including pre- and post-rerank candidate order —
-    is recorded in the TraceStore for observability.
+    Query run metadata — including pre- and post-rerank candidate order and
+    generation token usage — is recorded in the TraceStore for observability.
 
     Usage::
 
@@ -175,6 +181,7 @@ class QueryPipeline:
             embedding_provider=provider,
             trace_store=trace_store,
             reranker=NoOpReranker(),
+            answer_composer=BasicAnswerComposer(llm_client=client),
         )
         result = pipeline.query("What is retrieval augmented generation?")
 
@@ -187,6 +194,9 @@ class QueryPipeline:
             Required when ``vector_index`` is provided.
         reranker: Optional reranker applied after RRF fusion. When None,
             no reranking is performed and ``final_score = rrf_score``.
+        answer_composer: Optional BasicAnswerComposer (or compatible) instance.
+            When provided, the pipeline calls ``compose()`` after reranking and
+            attaches the Answer + AnswerTrace to the QueryResult.
         top_k: Number of candidates to retrieve per index. Defaults to 10.
         rrf_k: Smoothing constant for RRF fusion. Defaults to 60.
     """
@@ -198,6 +208,7 @@ class QueryPipeline:
         vector_index: Optional[BaseVectorIndex] = None,
         embedding_provider: Optional[BaseEmbeddingProvider] = None,
         reranker: Optional[BaseReranker] = None,
+        answer_composer=None,
         top_k: int = 10,
         rrf_k: int = 60,
     ) -> None:
@@ -205,6 +216,7 @@ class QueryPipeline:
         self._vector_index = vector_index
         self._embedding_provider = embedding_provider
         self._reranker = reranker
+        self._answer_composer = answer_composer
         self._trace_store = trace_store
         self._top_k = top_k
         self._fusion = RRFFusion(k=rrf_k)
@@ -310,6 +322,39 @@ class QueryPipeline:
         # 7. Build citations
         citations = _build_citations(final_candidates)
 
+        # 8. Optional generation stage
+        answer: Optional[Answer] = None
+        answer_trace: Optional[AnswerTrace] = None
+        if self._answer_composer is not None and final_candidates:
+            reranker_name = (
+                type(self._reranker).__name__ if self._reranker is not None else None
+            )
+            answer, answer_trace = self._answer_composer.compose(
+                query,
+                final_candidates,
+                run_id=run_id,
+                rerank_provider=reranker_name,
+                candidates_before_rerank=len(fused),
+            )
+            # Store generation stats in trace
+            self._trace_store.save_run(
+                run_type="query_generation",
+                metadata={
+                    "run_id": run_id,
+                    "query": query,
+                    "model": answer_trace.model,
+                    "prompt_tokens": answer_trace.prompt_tokens,
+                    "completion_tokens": answer_trace.completion_tokens,
+                    "total_tokens": answer_trace.total_tokens,
+                    "context_chunks_used": answer_trace.context_chunks_used,
+                    "abstained": answer.abstained,
+                    "generation_latency_ms": answer_trace.total_latency_ms,
+                },
+            )
+            # Override citations from composer (filtered to inline-referenced only)
+            if answer.citations:
+                citations = answer.citations
+
         logger.info(
             "Query '%s': %d candidates after fusion+rerank (run=%s)",
             query,
@@ -321,5 +366,7 @@ class QueryPipeline:
             query=query,
             candidates=final_candidates,
             citations=citations,
+            answer=answer,
+            answer_trace=answer_trace,
             run_id=run_id,
         )

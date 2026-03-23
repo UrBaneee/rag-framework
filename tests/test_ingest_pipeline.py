@@ -5,9 +5,33 @@ from pathlib import Path
 
 import pytest
 
+from rag.core.interfaces.embedding import BaseEmbeddingProvider
+from rag.infra.indexes.bm25_local import BM25LocalIndex
+from rag.infra.indexes.faiss_local import FaissLocalIndex
 from rag.infra.stores.docstore_sqlite import SQLiteDocStore, init_schema as init_doc_schema
 from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore, init_schema as init_trace_schema
 from rag.pipelines.ingest_pipeline import IngestPipeline
+
+
+# ---------------------------------------------------------------------------
+# Stub embedding provider (no external API required)
+# ---------------------------------------------------------------------------
+
+_DIM = 8
+
+
+class StubEmbeddingProvider(BaseEmbeddingProvider):
+    """Returns deterministic unit vectors (no API call)."""
+
+    @property
+    def dim(self) -> int:
+        return _DIM
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            raise ValueError("texts must not be empty")
+        # Each text gets a unique-ish vector based on length
+        return [[float(len(t) % _DIM == i) for i in range(_DIM)] for t in texts]
 
 SAMPLE_MD = Path(__file__).parent.parent / "tests" / "fixtures" / "sample.md"
 SAMPLE_PDF = Path(__file__).parent / "fixtures" / "sample.pdf"
@@ -174,3 +198,87 @@ def test_ingest_nonexistent_file_returns_error(tmp_path):
     pipeline = _make_pipeline(db)
     result = pipeline.ingest("/nonexistent/path/file.txt")
     assert result.error is not None
+
+
+# ---------------------------------------------------------------------------
+# Embedding + index integration
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_embeds_chunks_into_faiss(sample_txt, tmp_path):
+    """After ingest, FAISS index should hold searchable vectors."""
+    db = str(tmp_path / "rag.db")
+    doc_store, trace_store = _make_stores(db)
+    provider = StubEmbeddingProvider()
+    faiss_idx = FaissLocalIndex()
+
+    pipeline = IngestPipeline(
+        doc_store,
+        trace_store,
+        embedding_provider=provider,
+        vector_index=faiss_idx,
+    )
+    result = pipeline.ingest(sample_txt)
+
+    assert result.error is None
+    assert result.chunk_count > 0
+    # FAISS index must now contain the ingested vectors
+    query = [0.0] * _DIM
+    candidates = faiss_idx.search(query, top_k=result.chunk_count)
+    assert len(candidates) == result.chunk_count
+
+
+def test_ingest_updates_bm25_index(sample_txt, tmp_path):
+    """After ingest, BM25 index should return relevant results."""
+    db = str(tmp_path / "rag.db")
+    doc_store, trace_store = _make_stores(db)
+    provider = StubEmbeddingProvider()
+    bm25_idx = BM25LocalIndex()
+
+    pipeline = IngestPipeline(
+        doc_store,
+        trace_store,
+        embedding_provider=provider,
+        keyword_index=bm25_idx,
+    )
+    result = pipeline.ingest(sample_txt)
+
+    assert result.error is None
+    candidates = bm25_idx.search("paragraph", top_k=5)
+    assert len(candidates) > 0
+
+
+def test_ingest_without_embedding_provider_skips_indexing(sample_txt, tmp_path):
+    """Pipeline without an embedding provider must still succeed."""
+    db = str(tmp_path / "rag.db")
+    pipeline = _make_pipeline(db)
+    result = pipeline.ingest(sample_txt)
+    assert result.error is None
+    assert result.embed_tokens == 0
+
+
+def test_ingest_faiss_searchable_after_save_reload(sample_txt, tmp_path):
+    """FAISS index persisted to disk and reloaded must still return results."""
+    db = str(tmp_path / "rag.db")
+    doc_store, trace_store = _make_stores(db)
+    provider = StubEmbeddingProvider()
+    faiss_idx = FaissLocalIndex()
+
+    pipeline = IngestPipeline(
+        doc_store,
+        trace_store,
+        embedding_provider=provider,
+        vector_index=faiss_idx,
+    )
+    pipeline.ingest(sample_txt)
+
+    # Persist and reload into a fresh index
+    index_dir = str(tmp_path / "indexes")
+    faiss_idx.save(index_dir)
+
+    faiss_idx2 = FaissLocalIndex()
+    faiss_idx2.load(index_dir)
+
+    query = [0.0] * _DIM
+    candidates = faiss_idx2.search(query, top_k=5)
+    assert len(candidates) > 0

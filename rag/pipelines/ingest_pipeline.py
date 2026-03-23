@@ -1,13 +1,16 @@
-"""Minimal ingest pipeline — end-to-end document ingestion from file to storage."""
+"""End-to-end document ingestion pipeline with optional embedding and indexing."""
 
 import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from rag.core.interfaces.doc_store import BaseDocStore
+from rag.core.interfaces.embedding import BaseEmbeddingProvider
+from rag.core.interfaces.keyword_index import BaseKeywordIndex
 from rag.core.interfaces.trace_store import BaseTraceStore
+from rag.core.interfaces.vector_index import BaseVectorIndex
 from rag.infra.cleaning.cleaner_pipeline import CleanerPipeline
 from rag.infra.chunking.block_splitter_paragraph import ParagraphBlockSplitter
 from rag.infra.chunking.chunk_packer_anchor_aware import AnchorAwareChunkPacker
@@ -43,6 +46,7 @@ class IngestResult:
     chunk_count: int = 0
     run_id: str = ""
     elapsed_ms: float = 0.0
+    embed_tokens: int = 0
     skipped: bool = False
     error: str | None = None
 
@@ -52,7 +56,16 @@ class IngestPipeline:
 
     Connects all ingestion components in sequence:
     Loader → Sniffer → Router → Parser → Quality Gate →
-    Cleaner → Block Splitter → Chunk Packer → DocStore + TraceStore
+    Cleaner → Block Splitter → Chunk Packer →
+    (optional) Embedder → (optional) BM25 + FAISS indexes →
+    DocStore + TraceStore
+
+    When ``embedding_provider`` is supplied, every new chunk is embedded using
+    ``stable_text`` and the resulting vectors are stored on the Chunk object.
+    When ``vector_index`` or ``keyword_index`` are also provided they are
+    updated immediately after embedding. Token usage from the embedding call
+    is recorded both in ``IngestResult.embed_tokens`` and in the TraceStore
+    run-completion metadata.
 
     Usage::
 
@@ -65,6 +78,9 @@ class IngestPipeline:
         doc_store: DocStore implementation for persisting documents and chunks.
         trace_store: TraceStore implementation for recording run metadata.
         token_budget: Maximum approximate tokens per chunk. Defaults to 512.
+        embedding_provider: Optional provider used to embed chunks.
+        vector_index: Optional FAISS (or other) vector index to update.
+        keyword_index: Optional BM25 (or other) keyword index to update.
         cleaner_config_path: Path to cleaner_router.yaml. None = auto-detect.
         router_config_path: Path to parser_candidates.yaml. None = auto-detect.
         quality_gate_config_path: Path to quality_gates.yaml. None = auto-detect.
@@ -76,6 +92,9 @@ class IngestPipeline:
         doc_store: BaseDocStore,
         trace_store: BaseTraceStore,
         token_budget: int = 512,
+        embedding_provider: Optional[BaseEmbeddingProvider] = None,
+        vector_index: Optional[BaseVectorIndex] = None,
+        keyword_index: Optional[BaseKeywordIndex] = None,
         cleaner_config_path: str | Path | None = None,
         router_config_path: str | Path | None = None,
         quality_gate_config_path: str | Path | None = None,
@@ -83,6 +102,9 @@ class IngestPipeline:
     ) -> None:
         self._doc_store = doc_store
         self._trace_store = trace_store
+        self._embedding_provider = embedding_provider
+        self._vector_index = vector_index
+        self._keyword_index = keyword_index
 
         self._loader = LocalFileLoader()
         self._sniffer = CompositeSniffer()
@@ -140,6 +162,7 @@ class IngestPipeline:
                 "doc_id": result.doc_id,
                 "block_count": result.block_count,
                 "chunk_count": result.chunk_count,
+                "embed_tokens": result.embed_tokens,
                 "elapsed_ms": result.elapsed_ms,
                 "error": result.error,
             },
@@ -194,13 +217,53 @@ class IngestPipeline:
 
         # 8. Pack into Chunks
         chunks = self._packer.pack(text_blocks)
+
+        # Assign stable chunk_ids from chunk_signature so embedding and
+        # indexing work before (and consistently with) DocStore persistence.
+        chunks = [
+            c.model_copy(update={"chunk_id": c.chunk_id or c.chunk_signature})
+            for c in chunks
+        ]
+
+        # 9. Embed + index (optional)
+        embed_tokens = 0
+        if self._embedding_provider is not None and chunks:
+            texts = [c.stable_text for c in chunks]
+            embed_result = self._embedding_provider.embed(texts)
+            embed_tokens = getattr(embed_result, "prompt_tokens", 0)
+
+            # Vectors come back as a plain list when embed() is used directly;
+            # use embed_with_usage() if the provider supports it for token counts.
+            if hasattr(self._embedding_provider, "embed_with_usage"):
+                full_result = self._embedding_provider.embed_with_usage(texts)
+                vectors = full_result.vectors
+                embed_tokens = full_result.prompt_tokens
+            else:
+                vectors = embed_result if isinstance(embed_result, list) else embed_result.vectors
+
+            # Attach vectors to chunks (create updated copies via model_copy)
+            chunks = [
+                c.model_copy(update={"embedding": vec})
+                for c, vec in zip(chunks, vectors)
+            ]
+            logger.debug(
+                "Embedded %d chunks using %d tokens.", len(chunks), embed_tokens
+            )
+
+            if self._keyword_index is not None:
+                self._keyword_index.add(chunks)
+
+            if self._vector_index is not None:
+                self._vector_index.add(chunks)
+
         self._doc_store.save_chunks(chunks)
 
         logger.info(
-            "Ingested '%s': %d blocks, %d chunks (run=%s)",
+            "Ingested '%s': %d blocks, %d chunks, %d embed tokens (run=%s)",
             source_path,
             len(text_blocks),
             len(chunks),
+            embed_tokens,
             run_id,
         )
 
@@ -210,4 +273,5 @@ class IngestPipeline:
             block_count=len(text_blocks),
             chunk_count=len(chunks),
             run_id=run_id,
+            embed_tokens=embed_tokens,
         )

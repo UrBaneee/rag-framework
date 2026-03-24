@@ -77,6 +77,9 @@ class ParserOrchestrator:
         router_config_path: str | Path | None = None,
     ) -> None:
         self._registry = parser_registry
+        # Defaults — overwritten by _load_routes() if config is found
+        self._ocr_enabled: bool = True
+        self._ocr_min_chars: int = 100
         self._routes = self._load_routes(router_config_path)
 
     def _load_routes(self, config_path: str | Path | None) -> dict[str, list[str]]:
@@ -108,6 +111,12 @@ class ParserOrchestrator:
         routes: dict[str, list[str]] = {}
         for detected_type, route_cfg in data.get("routes", {}).items():
             routes[detected_type] = route_cfg.get("candidates", [])
+
+        # Load OCR fallback config
+        ocr_cfg = data.get("ocr", {})
+        self._ocr_enabled = bool(ocr_cfg.get("enabled", True))
+        self._ocr_min_chars = int(ocr_cfg.get("min_chars_threshold", 100))
+
         return routes
 
     def route(self, sniff_result: SniffResult) -> ParsePlan:
@@ -157,14 +166,43 @@ class ParserOrchestrator:
         fallback_triggered = False
 
         for i, parser_name in enumerate(plan.candidates):
+            # Skip pdf_ocr candidate if OCR is disabled in config
+            if parser_name == "pdf_ocr" and not self._ocr_enabled:
+                logger.debug("OCR disabled — skipping pdf_ocr candidate.")
+                continue
+
             parser = self._registry.get(parser_name)
             if parser is None:
-                logger.warning("Parser '%s' not registered — skipping.", parser_name)
+                logger.debug("Parser '%s' not registered — skipping.", parser_name)
                 continue
 
             try:
                 document = parser.parse(artifact.source_path)
-                if i > 0:
+
+                # OCR fallback trigger: if this is NOT the OCR parser and the
+                # result has too few characters, treat it as a scanned document
+                # and continue to the next candidate (which may be pdf_ocr).
+                if (
+                    parser_name != "pdf_ocr"
+                    and self._ocr_enabled
+                    and document.parse_report is not None
+                    and document.parse_report.char_count < self._ocr_min_chars
+                    and "pdf_ocr" in plan.candidates
+                    and self._registry.get("pdf_ocr") is not None
+                ):
+                    logger.info(
+                        "Primary parser '%s' yielded only %d chars for '%s' "
+                        "(threshold=%d) — triggering OCR fallback.",
+                        parser_name,
+                        document.parse_report.char_count,
+                        artifact.source_path,
+                        self._ocr_min_chars,
+                    )
+                    fallback_triggered = True
+                    last_error = None
+                    continue  # Try next candidate (pdf_ocr)
+
+                if i > 0 or fallback_triggered:
                     # A fallback parser was used
                     if document.parse_report:
                         document.parse_report.fallback_triggered = True

@@ -2655,10 +2655,10 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 13.1 | Implement OCR provider interface + PaddleOCR | [ ] | - | |
-| 13.2 | Implement page renderer (PDF → image) | [ ] | - | |
-| 13.3 | Implement scanned PDF parser | [ ] | - | |
-| 13.4 | Integrate OCR parser into router | [ ] | - | |
+| 13.1 | Implement OCR provider interface + PaddleOCR | [x] | 2026-03-23 | BaseOCRProvider ABC + PaddleOCRProvider with graceful ImportError |
+| 13.2 | Implement page renderer (PDF → image) | [x] | 2026-03-23 | BasePageRenderer ABC + PyMuPDFPageRenderer with DPI/colorspace config |
+| 13.3 | Implement scanned PDF parser | [x] | 2026-03-23 | PdfOCRParser: render+OCR per page, page stamping, confidence metadata |
+| 13.4 | Integrate OCR parser into router | [x] | 2026-03-23 | router config ocr.enabled/min_chars_threshold; low-char fallback in orchestrator |
 
 ### Phase 14 — RAGAS Answer Quality Evaluation
 
@@ -2696,7 +2696,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 10 | 6 | 6 | 100% |
 | Phase 11 | 5 | 5 | 100% |
 | Phase 12 | 3 | 3 | 100% |
-| Phase 13 | 4 | 0 | 0% |
+| Phase 13 | 4 | 4 | 100% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **72** | **84%** |
+| **Total** | **86** | **76** | **88%** |

@@ -3,9 +3,19 @@
 # The orchestrator tries candidates in order and uses the first successful result.
 # Add more candidates per type for fallback chains.
 
+ocr:
+  # Set to false to disable OCR fallback entirely (e.g. in environments
+  # where PaddleOCR is not installed).
+  enabled: true
+  # PDFs with fewer extracted characters than this are considered "scanned"
+  # and will trigger OCR fallback after the primary text parser runs.
+  min_chars_threshold: 100
+
 routes:
   pdf:
-    candidates: [pymupdf]
+    # pymupdf is tried first; if it produces too few chars (scanned PDF),
+    # the orchestrator falls back to pdf_ocr when ocr.enabled is true.
+    candidates: [pymupdf, pdf_ocr]
 
   html:
     candidates: [trafilatura]

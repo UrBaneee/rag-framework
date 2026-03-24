@@ -81,12 +81,20 @@ def render_candidate_table(
         )
         with st.expander(label, expanded=(rank <= 3)):
             # Score row
+            # vector_score is stored as -L2_distance (higher = more similar).
+            # Display the absolute value so readers see a plain distance where
+            # lower = closer, and label it "L2 dist ↓" to make the direction clear.
             score_col1, score_col2, score_col3, score_col4 = st.columns(4)
-            score_col1.metric("BM25", f"{cand.get('bm25_score'):.4f}" if cand.get('bm25_score') is not None else "—")
-            score_col2.metric("Vector", f"{cand.get('vector_score'):.4f}" if cand.get('vector_score') is not None else "—")
-            score_col3.metric("RRF", f"{cand.get('rrf_score', 0):.4f}")
+            score_col1.metric("BM25 ↑", f"{cand.get('bm25_score'):.4f}" if cand.get('bm25_score') is not None else "—")
+            raw_vec = cand.get('vector_score')
+            score_col2.metric(
+                "L2 dist ↓",
+                f"{abs(raw_vec):.4f}" if raw_vec is not None else "—",
+                help="L2 (Euclidean) distance from the query vector. Lower = more similar.",
+            )
+            score_col3.metric("RRF ↑", f"{cand.get('rrf_score', 0):.4f}")
             score_col4.metric(
-                "Rerank" if cand.get('rerank_score') is not None else "Final",
+                "Rerank ↑" if cand.get('rerank_score') is not None else "Final ↑",
                 f"{(cand.get('rerank_score') or cand.get('final_score', 0)):.4f}",
             )
             # Text content

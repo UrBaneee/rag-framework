@@ -12,20 +12,41 @@ from rag.infra.chunking.anchor_annotator_rules import AnchorAnnotation, AnchorAn
 
 logger = logging.getLogger(__name__)
 
-# Default token budget per chunk (approximate: 1 token ≈ 4 chars)
+# Default token budget per chunk
 _DEFAULT_TOKEN_BUDGET = 512
+
+# Tiktoken encoder — used for accurate token counting across all scripts
+# (English, Chinese, Japanese, etc.). Falls back to char-based estimate
+# if tiktoken is unavailable.
+try:
+    import tiktoken as _tiktoken
+
+    _ENCODER = _tiktoken.get_encoding("cl100k_base")
+    _TIKTOKEN_AVAILABLE = True
+except Exception:  # pragma: no cover
+    _ENCODER = None
+    _TIKTOKEN_AVAILABLE = False
+
+# Fallback: chars per token for English-only heuristic
 _CHARS_PER_TOKEN = 4
 
 
 def _approx_tokens(text: str) -> int:
-    """Estimate token count from character length.
+    """Count tokens using tiktoken (cl100k_base) or fall back to char heuristic.
+
+    tiktoken gives accurate counts for all scripts including CJK where each
+    character is typically 1 token, vs ~0.25 tokens in the naïve 4-chars
+    heuristic. Without it a 1000-char Chinese document is underestimated by
+    4× and never gets split into multiple chunks.
 
     Args:
         text: Input text.
 
     Returns:
-        Approximate token count.
+        Token count (exact if tiktoken available, approximate otherwise).
     """
+    if _TIKTOKEN_AVAILABLE and _ENCODER is not None:
+        return max(1, len(_ENCODER.encode(text)))
     return max(1, len(text) // _CHARS_PER_TOKEN)
 
 

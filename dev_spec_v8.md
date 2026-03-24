@@ -2675,7 +2675,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 15.1 | Define connector interface and sync contract | [x] | 2026-03-23 | BaseSourceConnector ABC; SourceArtifact dataclass; connector_state table in DocStore; sources.yaml registry |
 | 15.2 | Implement Email connector | [x] | 2026-03-23 | IMAP4_SSL connector; UID cursor; body + PDF attachment artifacts; stable source_id; batch_size; healthcheck |
 | 15.3 | Implement Slack connector | [x] | 2026-03-23 | Web API connector; ts cursor; thread flattening; multi-channel; reply dedup; healthcheck via auth.test |
-| 15.4 | Implement Notion connector | [ ] | - | |
+| 15.4 | Implement Notion connector | [x] | 2026-03-23 | Notion API connector; last_edited_time cursor; block-tree→text; database query + search fallback; pagination; healthcheck |
 | 15.5 | Implement Google Docs connector | [ ] | - | |
 | 15.6 | Wire connector sync pipeline and MCP entrypoint | [ ] | - | |
 

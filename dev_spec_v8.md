@@ -2673,7 +2673,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
 | 15.1 | Define connector interface and sync contract | [x] | 2026-03-23 | BaseSourceConnector ABC; SourceArtifact dataclass; connector_state table in DocStore; sources.yaml registry |
-| 15.2 | Implement Email connector | [ ] | - | |
+| 15.2 | Implement Email connector | [x] | 2026-03-23 | IMAP4_SSL connector; UID cursor; body + PDF attachment artifacts; stable source_id; batch_size; healthcheck |
 | 15.3 | Implement Slack connector | [ ] | - | |
 | 15.4 | Implement Notion connector | [ ] | - | |
 | 15.5 | Implement Google Docs connector | [ ] | - | |

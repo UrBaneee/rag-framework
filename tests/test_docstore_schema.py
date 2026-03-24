@@ -32,7 +32,7 @@ def test_schema_is_idempotent(tmp_path):
     db = tmp_path / "test.sqlite"
     init_schema(db)
     init_schema(db)  # Second call must not raise
-    assert set(get_tables(db)) == {"documents", "text_blocks", "chunks"}
+    assert set(get_tables(db)) == {"documents", "text_blocks", "chunks", "connector_state"}
 
 
 @pytest.mark.unit

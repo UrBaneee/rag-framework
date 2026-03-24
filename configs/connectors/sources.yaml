@@ -1,0 +1,42 @@
+# External source connector registry — Task 15.1
+#
+# Each entry registers a connector by its stable ``connector_name``.
+# Settings here are loaded at connector instantiation time.
+#
+# Common fields per connector:
+#   enabled:        bool   — skip this connector when False
+#   sync_interval:  str    — cron expression or ISO 8601 duration (informational)
+#   batch_size:     int    — max items per list_items() call
+#
+# Provider-specific credentials should be read from environment variables,
+# NOT stored here in plain text.
+
+connectors:
+
+  email:
+    enabled: false
+    connector_class: rag.infra.connectors.email_connector.EmailConnector
+    sync_interval: "PT15M"   # every 15 minutes
+    batch_size: 50
+    # Env vars: RAG_EMAIL_SERVER, RAG_EMAIL_USER, RAG_EMAIL_PASSWORD
+
+  slack:
+    enabled: false
+    connector_class: rag.infra.connectors.slack_connector.SlackConnector
+    sync_interval: "PT5M"    # every 5 minutes
+    batch_size: 200
+    # Env vars: RAG_SLACK_BOT_TOKEN, RAG_SLACK_CHANNEL_IDS
+
+  notion:
+    enabled: false
+    connector_class: rag.infra.connectors.notion_connector.NotionConnector
+    sync_interval: "PT30M"   # every 30 minutes
+    batch_size: 20
+    # Env vars: RAG_NOTION_TOKEN, RAG_NOTION_DATABASE_IDS
+
+  google_docs:
+    enabled: false
+    connector_class: rag.infra.connectors.google_docs_connector.GoogleDocsConnector
+    sync_interval: "PT30M"   # every 30 minutes
+    batch_size: 20
+    # Env vars: RAG_GOOGLE_SERVICE_ACCOUNT_JSON, RAG_GOOGLE_DRIVE_FOLDER_IDS

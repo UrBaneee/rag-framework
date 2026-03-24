@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS chunks (
 );
 """
 
+_DDL_CONNECTOR_STATE = """
+CREATE TABLE IF NOT EXISTS connector_state (
+    connector_name  TEXT PRIMARY KEY,
+    cursor          TEXT NOT NULL DEFAULT '',
+    last_sync_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
 _DDL_INDEXES = [
     # text_blocks
     "CREATE INDEX IF NOT EXISTS idx_text_blocks_doc_id ON text_blocks(doc_id);",
@@ -88,6 +96,7 @@ def init_schema(db_path: str | Path) -> None:
             conn.execute(_DDL_DOCUMENTS)
             conn.execute(_DDL_TEXT_BLOCKS)
             conn.execute(_DDL_CHUNKS)
+            conn.execute(_DDL_CONNECTOR_STATE)
             for ddl in _DDL_INDEXES:
                 conn.execute(ddl)
             conn.commit()
@@ -411,6 +420,72 @@ class SQLiteDocStore(BaseDocStore):
                 (chunk_id,),
             ).fetchone()
         return self._row_to_chunk(row) if row else None
+
+    # ------------------------------------------------------------------
+    # Connector state (cursor persistence) — Task 15.1
+    # ------------------------------------------------------------------
+
+    def save_connector_cursor(self, connector_name: str, cursor: str) -> None:
+        """Persist the sync cursor for a named connector.
+
+        Uses an upsert so the first call creates the row and subsequent
+        calls update it.
+
+        Args:
+            connector_name: Stable connector identifier (primary key).
+            cursor: Opaque cursor string returned by the connector.
+        """
+        with self._conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO connector_state (connector_name, cursor, last_sync_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT(connector_name) DO UPDATE SET
+                    cursor = excluded.cursor,
+                    last_sync_at = excluded.last_sync_at
+                """,
+                (connector_name, cursor),
+            )
+            conn.commit()
+
+    def load_connector_cursor(self, connector_name: str) -> str:
+        """Load the last persisted cursor for a named connector.
+
+        Args:
+            connector_name: Stable connector identifier.
+
+        Returns:
+            Cursor string, or ``""`` if no cursor has been saved yet.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT cursor FROM connector_state WHERE connector_name = ?",
+                (connector_name,),
+            ).fetchone()
+        return row["cursor"] if row else ""
+
+    def get_connector_state(self, connector_name: str) -> Optional[dict]:
+        """Return the full connector state row as a dict.
+
+        Args:
+            connector_name: Stable connector identifier.
+
+        Returns:
+            Dict with ``connector_name``, ``cursor``, and ``last_sync_at``
+            keys, or ``None`` if not found.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT connector_name, cursor, last_sync_at FROM connector_state WHERE connector_name = ?",
+                (connector_name,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "connector_name": row["connector_name"],
+            "cursor": row["cursor"],
+            "last_sync_at": row["last_sync_at"],
+        }
 
     @staticmethod
     def _row_to_chunk(row: sqlite3.Row) -> Chunk:

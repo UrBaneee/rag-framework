@@ -1,4 +1,4 @@
-"""Evaluation pipeline — Tasks 10.2 and 10.3.
+"""Evaluation pipeline — Tasks 10.2, 10.3, and 14.2.
 
 Computes retrieval metrics (Recall@K, MRR, nDCG@K), source attribution
 diagnostics (bm25_only / vector_only / both ratios), and system
@@ -45,6 +45,7 @@ import logging
 from typing import Any, Optional, Sequence
 
 from rag.core.contracts.eval_report import (
+    AnswerQualityMetrics,
     EfficiencyMetrics,
     EvalReport,
     QueryEvalResult,
@@ -232,4 +233,85 @@ def run_eval(
         source_attribution=attr,
         efficiency=efficiency,
         per_query=per_query,
+    )
+
+
+def run_golden_eval(
+    golden_entries: list[dict],
+    query_pipeline: Any,
+    evaluator: Any = None,
+    trace_store: Any = None,
+) -> AnswerQualityMetrics:
+    """Run RAGAS answer quality evaluation over a golden test set.
+
+    Each entry must contain ``"query"``, ``"expected_answer"``, and
+    optionally ``"expected_sources"``.  The ``query_pipeline`` is called
+    for each query to obtain an answer and context passages.
+
+    Args:
+        golden_entries: List of golden test set entries loaded from
+            ``tests/fixtures/golden_answer_set.json``.
+        query_pipeline: A ``QueryPipeline`` instance (or any object with
+            a ``run(query)`` method returning a ``QueryResult``).
+        evaluator: A ``BaseAnswerEvaluator`` instance.  If None or if
+            RAGAS is not installed, returns ``AnswerQualityMetrics`` with
+            ``ragas_available=False``.
+        trace_store: Optional ``BaseTraceStore`` to record results.
+
+    Returns:
+        ``AnswerQualityMetrics`` with aggregate faithfulness,
+        answer_relevancy, and context_precision scores.
+    """
+    if evaluator is None:
+        logger.info("No answer evaluator provided — skipping RAGAS evaluation.")
+        return AnswerQualityMetrics(ragas_available=False)
+
+    per_query_scores: list[dict] = []
+    faithfulness_vals: list[float] = []
+    relevancy_vals: list[float] = []
+    precision_vals: list[float] = []
+
+    for entry in golden_entries:
+        query = entry.get("query", "")
+        ground_truth = entry.get("expected_answer", "")
+        if not query:
+            continue
+
+        try:
+            result = query_pipeline.run(query)
+            answer_text = result.answer.text if result.answer else ""
+            contexts = [c.display_text for c in result.candidates[:5]]
+
+            scores = evaluator.evaluate(
+                query=query,
+                answer=answer_text,
+                contexts=contexts,
+                ground_truth=ground_truth,
+            )
+
+            per_query_scores.append({"query": query, **scores})
+            faithfulness_vals.append(scores.get("faithfulness", 0.0))
+            relevancy_vals.append(scores.get("answer_relevancy", 0.0))
+            precision_vals.append(scores.get("context_precision", 0.0))
+
+            if trace_store is not None:
+                trace_store.save_run(
+                    run_type="golden_eval_result",
+                    metadata={"query": query, **scores},
+                )
+
+        except Exception as exc:
+            logger.warning("RAGAS evaluation failed for query '%s': %s", query, exc)
+
+    n = len(faithfulness_vals)
+    if n == 0:
+        return AnswerQualityMetrics(ragas_available=True, num_evaluated=0)
+
+    return AnswerQualityMetrics(
+        mean_faithfulness=sum(faithfulness_vals) / n,
+        mean_answer_relevancy=sum(relevancy_vals) / n,
+        mean_context_precision=sum(precision_vals) / n,
+        num_evaluated=n,
+        ragas_available=True,
+        per_query=per_query_scores,
     )

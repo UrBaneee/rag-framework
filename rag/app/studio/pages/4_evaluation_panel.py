@@ -259,6 +259,12 @@ with tab_results:
         render_efficiency_metrics(report)
         st.divider()
 
+        # Answer quality (RAGAS) — Task 14.3
+        from rag.app.studio.components.metrics_table import render_answer_quality
+        render_answer_quality(report.ragas_metrics)
+        if report.ragas_metrics is not None:
+            st.divider()
+
         render_per_case_table(report.per_query, k=report.k)
 
 
@@ -281,6 +287,11 @@ with tab_glossary:
             "mean_ingest_latency_ms",
             "skipped_chunks",
             "changed_chunks",
+        ],
+        "Answer Quality (RAGAS)": [
+            "faithfulness",
+            "answer_relevancy",
+            "context_precision",
         ],
     }
 

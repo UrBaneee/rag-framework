@@ -2664,9 +2664,9 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 14.1 | Implement RAGAS evaluator interface | [ ] | - | |
-| 14.2 | Create golden test set for answer evaluation | [ ] | - | |
-| 14.3 | Add answer quality metrics to evaluation panel | [ ] | - | |
+| 14.1 | Implement RAGAS evaluator interface | [x] | 2026-03-23 | BaseAnswerEvaluator ABC; RagasEvaluator with graceful ImportError; AnswerQualityMetrics dataclass |
+| 14.2 | Create golden test set for answer evaluation | [x] | 2026-03-23 | golden_answer_set.json (7 entries); run_golden_eval() in eval_pipeline; EvalReport.ragas_metrics |
+| 14.3 | Add answer quality metrics to evaluation panel | [x] | 2026-03-23 | render_answer_quality() in metrics_table; faithfulness/answer_relevancy/context_precision in GLOSSARY; panel Results tab updated |
 
 ### Phase 15 — External Connectors (Email / Slack / Notion / Google Docs)
 

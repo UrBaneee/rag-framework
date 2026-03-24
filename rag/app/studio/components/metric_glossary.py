@@ -182,6 +182,54 @@ GLOSSARY: dict[str, MetricEntry] = {
             "Shown as N/A until then."
         ),
     ),
+    # ------------------------------------------------------------------
+    # Answer Quality (RAGAS)
+    # ------------------------------------------------------------------
+    "faithfulness": MetricEntry(
+        label="Faithfulness",
+        description=(
+            "Measures whether the generated answer is grounded in the "
+            "retrieved context passages.  A high score means every claim "
+            "in the answer can be traced back to the provided context."
+        ),
+        direction="higher_is_better",
+        pitfalls=(
+            "Requires RAGAS and an LLM to compute.  Faithfulness can be "
+            "high even if the answer is incomplete — it only checks "
+            "that stated facts are supported, not that all relevant facts "
+            "are included."
+        ),
+    ),
+    "answer_relevancy": MetricEntry(
+        label="Answer Relevancy",
+        description=(
+            "Measures how directly the generated answer addresses the "
+            "original question.  Computed by asking the LLM to generate "
+            "candidate questions from the answer and comparing them to "
+            "the original query via embedding similarity."
+        ),
+        direction="higher_is_better",
+        pitfalls=(
+            "Requires RAGAS and an embedding model.  A concise but "
+            "incomplete answer can still score high if the portion it "
+            "covers is on-topic.  Does not penalise omissions."
+        ),
+    ),
+    "context_precision": MetricEntry(
+        label="Context Precision",
+        description=(
+            "Measures the fraction of retrieved context passages that are "
+            "actually relevant to the question.  Higher precision means "
+            "less noise in the context window, reducing hallucination risk."
+        ),
+        direction="higher_is_better",
+        pitfalls=(
+            "Requires RAGAS and a ground-truth answer or source list.  "
+            "Low context precision may indicate that the retrieval step "
+            "is pulling in off-topic chunks rather than a generation "
+            "problem."
+        ),
+    ),
 }
 
 

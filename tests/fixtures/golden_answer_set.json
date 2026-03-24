@@ -1,0 +1,37 @@
+[
+  {
+    "query": "What is Retrieval-Augmented Generation (RAG)?",
+    "expected_answer": "RAG is a technique that combines information retrieval with language model generation. It retrieves relevant documents from a knowledge base and uses them as context to generate accurate, grounded answers.",
+    "expected_sources": ["rag_overview.md", "architecture.md"]
+  },
+  {
+    "query": "How does BM25 differ from vector search?",
+    "expected_answer": "BM25 is a keyword-based ranking algorithm that scores documents based on term frequency and inverse document frequency. Vector search encodes text as dense embeddings and retrieves by semantic similarity. BM25 excels at exact keyword matches while vector search handles paraphrasing and synonyms.",
+    "expected_sources": ["retrieval_methods.md"]
+  },
+  {
+    "query": "What is Reciprocal Rank Fusion (RRF)?",
+    "expected_answer": "RRF is a rank aggregation method that merges results from multiple ranked lists by assigning scores based on each item's rank position rather than raw scores. It produces a unified ranking that benefits from both BM25 and vector search results.",
+    "expected_sources": ["fusion.md", "retrieval_methods.md"]
+  },
+  {
+    "query": "What metrics are used to evaluate retrieval quality?",
+    "expected_answer": "Common retrieval evaluation metrics include Recall@K (fraction of relevant documents in the top K results), MRR (Mean Reciprocal Rank, measuring rank of first relevant result), and nDCG@K (normalized Discounted Cumulative Gain, a graded relevance metric).",
+    "expected_sources": ["evaluation.md"]
+  },
+  {
+    "query": "How does context packing work in the RAG pipeline?",
+    "expected_answer": "Context packing selects the top-K retrieved chunks that fit within a token budget, deduplicates chunks with identical content, and formats them into a numbered list for the LLM prompt. It balances completeness against prompt length constraints.",
+    "expected_sources": ["generation.md", "context_packing.md"]
+  },
+  {
+    "query": "What is the purpose of the TraceStore?",
+    "expected_answer": "The TraceStore records metadata about every ingest and query run, including timing, chunk counts, and generation details. It enables debugging, performance monitoring, and reproducibility of results through the Streamlit trace viewer.",
+    "expected_sources": ["infrastructure.md"]
+  },
+  {
+    "query": "How does the incremental ingestion pipeline avoid re-embedding unchanged chunks?",
+    "expected_answer": "The incremental pipeline computes a SHA-256 fingerprint of each document on ingest. If the fingerprint matches a stored version, the document is skipped. When content changes, a block diff identifies which chunks are new or modified, and only those are re-embedded.",
+    "expected_sources": ["incremental_ingest.md"]
+  }
+]

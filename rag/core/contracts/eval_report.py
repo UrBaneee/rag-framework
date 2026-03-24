@@ -1,4 +1,4 @@
-"""Evaluation report contracts — Tasks 10.2 and 10.3.
+"""Evaluation report contracts — Tasks 10.2, 10.3, and 14.2.
 
 Defines data-classes for retrieval evaluation results, including
 retrieval metrics, source attribution diagnostics, and system
@@ -111,6 +111,37 @@ class QueryEvalResult:
 
 
 @dataclass
+class AnswerQualityMetrics:
+    """Aggregate RAGAS answer quality metrics across the golden test set.
+
+    Attributes:
+        mean_faithfulness: Average faithfulness score (0–1).
+        mean_answer_relevancy: Average answer relevancy score (0–1).
+        mean_context_precision: Average context precision score (0–1).
+        num_evaluated: Number of queries successfully evaluated by RAGAS.
+        ragas_available: False when RAGAS is not installed.
+        per_query: Per-query score dicts for drill-down.
+    """
+
+    mean_faithfulness: float = 0.0
+    mean_answer_relevancy: float = 0.0
+    mean_context_precision: float = 0.0
+    num_evaluated: int = 0
+    ragas_available: bool = True
+    per_query: list[dict] = field(default_factory=list)
+
+    def as_dict(self) -> dict:
+        """Return a plain dict representation."""
+        return {
+            "mean_faithfulness": self.mean_faithfulness,
+            "mean_answer_relevancy": self.mean_answer_relevancy,
+            "mean_context_precision": self.mean_context_precision,
+            "num_evaluated": self.num_evaluated,
+            "ragas_available": self.ragas_available,
+        }
+
+
+@dataclass
 class EvalReport:
     """Complete evaluation report with retrieval metrics and diagnostics.
 
@@ -139,6 +170,7 @@ class EvalReport:
     )
     efficiency: EfficiencyMetrics = field(default_factory=EfficiencyMetrics)
     per_query: list[QueryEvalResult] = field(default_factory=list)
+    ragas_metrics: Optional["AnswerQualityMetrics"] = None
 
     def as_dict(self) -> dict:
         """Return a plain dict representation."""
@@ -150,4 +182,5 @@ class EvalReport:
             "k": self.k,
             "source_attribution": self.source_attribution.as_dict(),
             "efficiency": self.efficiency.as_dict(),
+            "ragas_metrics": self.ragas_metrics.as_dict() if self.ragas_metrics else None,
         }

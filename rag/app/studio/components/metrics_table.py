@@ -8,6 +8,7 @@ Public functions:
 - ``render_source_attribution(report)``  — BM25/vector/both ratios
 - ``render_efficiency_metrics(report)``  — latency and token savings
 - ``render_per_case_table(results)``     — per-query outcome rows
+- ``render_answer_quality(ragas_metrics)`` — RAGAS answer quality tiles
 """
 
 from __future__ import annotations
@@ -217,3 +218,67 @@ def render_per_case_table(per_query: list[Any], k: int) -> None:
 
     st.divider()
     st.dataframe(rows, use_container_width=True)
+
+
+# ---------------------------------------------------------------------------
+# Answer quality (RAGAS)
+# ---------------------------------------------------------------------------
+
+
+def render_answer_quality(ragas_metrics: Any) -> None:
+    """Render RAGAS answer quality metrics as a row of st.metric tiles.
+
+    Shows faithfulness, answer relevancy, and context precision.  If
+    ``ragas_metrics`` is None or ``ragas_available`` is False, displays
+    an informational message instead.
+
+    Args:
+        ragas_metrics: ``AnswerQualityMetrics`` instance from
+            ``run_golden_eval()``, or ``None`` if not computed.
+    """
+    st.subheader("Answer Quality (RAGAS)")
+
+    if ragas_metrics is None:
+        st.info(
+            "RAGAS answer quality metrics were not computed for this run. "
+            "Use `--answer-quality` via the CLI or call `run_golden_eval()` "
+            "to enable them."
+        )
+        return
+
+    if not ragas_metrics.ragas_available:
+        st.warning(
+            "RAGAS is not installed.  Install it with:\n\n"
+            "```\npip install ragas\n```"
+        )
+        return
+
+    if ragas_metrics.num_evaluated == 0:
+        st.info("RAGAS evaluation ran but no queries were successfully scored.")
+        return
+
+    st.caption(f"Evaluated {ragas_metrics.num_evaluated} queries against the golden answer set.")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric(
+            label=label("faithfulness"),
+            value=f"{ragas_metrics.mean_faithfulness:.3f}",
+            help=tooltip("faithfulness"),
+        )
+    with c2:
+        st.metric(
+            label=label("answer_relevancy"),
+            value=f"{ragas_metrics.mean_answer_relevancy:.3f}",
+            help=tooltip("answer_relevancy"),
+        )
+    with c3:
+        st.metric(
+            label=label("context_precision"),
+            value=f"{ragas_metrics.mean_context_precision:.3f}",
+            help=tooltip("context_precision"),
+        )
+
+    if ragas_metrics.per_query:
+        with st.expander("Per-query RAGAS scores", expanded=False):
+            st.dataframe(ragas_metrics.per_query, use_container_width=True)

@@ -151,7 +151,9 @@ if run_btn and uploaded_file is not None:
                 vector_index=vec_index,
                 keyword_index=kw_index,
             )
-            result = pipeline.ingest(tmp_path)
+            # Pass the original filename as the canonical name so re-ingesting
+            # the same file removes the previous version's chunks from the index.
+            result = pipeline.ingest(tmp_path, canonical_name=uploaded_file.name)
 
             # Persist indexes if updated
             if vec_index is not None:

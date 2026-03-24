@@ -250,30 +250,43 @@ class IngestPipeline:
                 },
             )
 
-    def ingest(self, source_path: str | Path) -> IngestResult:
+    def ingest(
+        self,
+        source_path: str | Path,
+        canonical_name: str | None = None,
+    ) -> IngestResult:
         """Ingest a single document file end-to-end.
 
         Args:
-            source_path: Path to the file to ingest.
+            source_path: Path to the file to read (may be a temp path).
+            canonical_name: Stable identifier used for DocStore lookups and
+                stale-chunk detection. Defaults to ``source_path``.
+                Pass the original filename when ingesting from a temp file
+                (e.g. Streamlit uploads) so re-ingesting the same document
+                correctly removes the previous version's chunks.
 
         Returns:
             IngestResult summarising the outcome.
         """
         source_path = str(Path(source_path).resolve())
+        # canonical_name is the stable key for deduplication / stale removal.
+        # When ingesting from a temp path, callers should pass the original
+        # filename so subsequent re-ingests can find and remove the old version.
+        canonical = canonical_name if canonical_name else source_path
         start = time.monotonic()
 
         run_id = self._trace_store.save_run(
             run_type="ingest",
-            metadata={"source_path": source_path},
+            metadata={"source_path": canonical},
         )
 
         try:
-            result = self._run(source_path, run_id)
+            result = self._run(source_path, run_id, canonical_name=canonical)
         except Exception as exc:
-            logger.exception("Ingest failed for '%s': %s", source_path, exc)
+            logger.exception("Ingest failed for '%s': %s", canonical, exc)
             result = IngestResult(
                 doc_id="",
-                source_path=source_path,
+                source_path=canonical,
                 run_id=run_id,
                 error=str(exc),
             )
@@ -282,7 +295,7 @@ class IngestPipeline:
         self._trace_store.save_run(
             run_type="ingest_complete",
             metadata={
-                "source_path": source_path,
+                "source_path": canonical,
                 "run_id": run_id,
                 "doc_id": result.doc_id,
                 "block_count": result.block_count,
@@ -294,12 +307,18 @@ class IngestPipeline:
         )
         return result
 
-    def _run(self, source_path: str, run_id: str) -> IngestResult:
+    def _run(
+        self,
+        source_path: str,
+        run_id: str,
+        canonical_name: str | None = None,
+    ) -> IngestResult:
         """Internal pipeline execution — all stages.
 
         Args:
-            source_path: Resolved absolute path to the source file.
+            source_path: Resolved absolute path to the source file to read.
             run_id: TraceStore run identifier.
+            canonical_name: Stable key for DocStore lookups (default: source_path).
 
         Returns:
             Populated IngestResult on success.
@@ -307,20 +326,25 @@ class IngestPipeline:
         Raises:
             Exception: On any unrecoverable pipeline error.
         """
+        # canonical is the stable identity key used for deduplication and
+        # stale-chunk lookup. When the file is a temp upload, canonical_name
+        # is the original filename so re-ingests find the previous version.
+        canonical = canonical_name if canonical_name else source_path
+
         # 1. Load
         artifact = self._loader.load(source_path)
 
         # 1b. Fingerprint — detect unchanged documents before deep processing
         content_hash = fingerprint_bytes(artifact.raw_bytes)
-        doc_id = make_doc_id(source_path, content_hash)
+        doc_id = make_doc_id(canonical, content_hash)
 
         if self._doc_store.document_exists(doc_id):
             logger.info(
-                "Skipping unchanged document '%s' (doc_id=%s)", source_path, doc_id
+                "Skipping unchanged document '%s' (doc_id=%s)", canonical, doc_id
             )
             return IngestResult(
                 doc_id=doc_id,
-                source_path=source_path,
+                source_path=canonical,
                 run_id=run_id,
                 skipped=True,
             )
@@ -344,9 +368,11 @@ class IngestPipeline:
                 )
 
         # Override parser's doc_id with fingerprint-based id so the DocStore
-        # lookup in step 1b is consistent across runs.
+        # lookup in step 1b is consistent across runs. Also stamp canonical
+        # source_path so DocStore lookups by filename always match.
         document = document.model_copy(update={
             "doc_id": doc_id,
+            "source_path": canonical,
             "metadata": {**document.metadata, "content_hash": content_hash},
         })
 
@@ -354,14 +380,14 @@ class IngestPipeline:
         prev_doc_id: str | None = None
         prev_chunk_ids: list[str] = []
         if hasattr(self._doc_store, "get_prev_doc_id_for_source"):
-            prev_doc_id = self._doc_store.get_prev_doc_id_for_source(source_path)  # type: ignore[attr-defined]
+            prev_doc_id = self._doc_store.get_prev_doc_id_for_source(canonical)  # type: ignore[attr-defined]
             if prev_doc_id and prev_doc_id != doc_id:
                 old_chunks = self._doc_store.get_chunks(prev_doc_id)
                 prev_chunk_ids = [c.chunk_id for c in old_chunks if c.chunk_id]
                 logger.debug(
                     "Found %d stale chunks from previous version of '%s' (prev_doc_id=%s)",
                     len(prev_chunk_ids),
-                    source_path,
+                    canonical,
                     prev_doc_id,
                 )
 
@@ -377,20 +403,20 @@ class IngestPipeline:
         # 7b. Block diff — compare new blocks against the previous version
         block_diff: BlockDiffResult | None = None
         if hasattr(self._doc_store, "get_prev_blocks_for_source"):
-            prev_blocks = self._doc_store.get_prev_blocks_for_source(source_path)  # type: ignore[attr-defined]
+            prev_blocks = self._doc_store.get_prev_blocks_for_source(canonical)  # type: ignore[attr-defined]
             if prev_blocks:
                 old_hashes = [b.block_hash for b in prev_blocks]
                 new_hashes = [b.block_hash for b in text_blocks]
                 block_diff = diff_blocks(old_hashes, new_hashes)
                 logger.debug(
                     "Block diff for '%s': +%d added, -%d removed, %d unchanged",
-                    source_path,
+                    canonical,
                     block_diff.added_count,
                     block_diff.removed_count,
                     block_diff.unchanged_count,
                 )
                 # 7c. Guardrail check — warn/error if change ratio exceeds thresholds
-                self._check_resync_guardrails(block_diff, source_path, run_id)
+                self._check_resync_guardrails(block_diff, canonical, run_id)
 
         self._doc_store.save_text_blocks(text_blocks)
 

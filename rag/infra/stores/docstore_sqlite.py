@@ -421,6 +421,45 @@ class SQLiteDocStore(BaseDocStore):
             ).fetchone()
         return self._row_to_chunk(row) if row else None
 
+    def list_documents(self) -> list[dict]:
+        """Return a summary list of all ingested documents.
+
+        Returns:
+            List of dicts with keys: doc_id, source_path, mime_type.
+            Ordered by rowid descending (most recently ingested first).
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT doc_id, source_path, mime_type FROM documents ORDER BY rowid DESC"
+            ).fetchall()
+        return [{"doc_id": r["doc_id"], "source_path": r["source_path"], "mime_type": r["mime_type"]} for r in rows]
+
+    def get_all_chunks(self, doc_id: str | None = None) -> list[Chunk]:
+        """Retrieve chunks, optionally filtered to a single document.
+
+        Args:
+            doc_id: If provided, only return chunks for this document.
+                    If None, return all chunks across all documents.
+
+        Returns:
+            List of Chunks ordered by doc_id then rowid.
+        """
+        with self._conn() as conn:
+            if doc_id:
+                rows = conn.execute(
+                    """SELECT chunk_id, doc_id, stable_text, display_text,
+                              chunk_signature, block_hashes_json, token_count, metadata_json
+                       FROM chunks WHERE doc_id = ? ORDER BY rowid""",
+                    (doc_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """SELECT chunk_id, doc_id, stable_text, display_text,
+                              chunk_signature, block_hashes_json, token_count, metadata_json
+                       FROM chunks ORDER BY doc_id, rowid"""
+                ).fetchall()
+        return [self._row_to_chunk(row) for row in rows]
+
     # ------------------------------------------------------------------
     # Connector state (cursor persistence) — Task 15.1
     # ------------------------------------------------------------------

@@ -197,7 +197,7 @@ def test_stage_order_covers_all_labels():
 
 def test_ingestion_trace_page_imports():
     mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/2_ingestion_traces.py"),
+        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
         "ingestion_traces_page",
     )
     assert mod is not None
@@ -206,7 +206,7 @@ def test_ingestion_trace_page_imports():
 def test_load_runs_helper_returns_list_on_missing_db():
     """_load_runs should return an empty list when DB does not exist."""
     mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/2_ingestion_traces.py"),
+        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
         "ingestion_traces_page2",
     )
     result = mod._load_runs("/nonexistent/path/rag.db", 50)
@@ -215,7 +215,7 @@ def test_load_runs_helper_returns_list_on_missing_db():
 
 def test_load_events_for_run_returns_list_on_missing_db():
     mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/2_ingestion_traces.py"),
+        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
         "ingestion_traces_page3",
     )
     result = mod._load_events_for_run("/nonexistent/path/rag.db", "run-xyz")

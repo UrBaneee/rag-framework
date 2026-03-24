@@ -2647,7 +2647,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 
 | Task ID | Task Name | Status | Completed | Notes |
 |---|---|---|---|---|
-| 12.1 | Add pronoun risk detection | [ ] | - | |
+| 12.1 | Add pronoun risk detection | [x] | 2026-03-23 | PronounRiskScorer with score/score_chunk/score_chunks; low/medium/high levels; metadata annotation |
 | 12.2 | Add metadata enrichment (rules first) | [ ] | - | |
 | 12.3 | Add LLM metadata enrichment | [ ] | - | |
 
@@ -2695,8 +2695,8 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 9 | 3 | 3 | 100% |
 | Phase 10 | 6 | 6 | 100% |
 | Phase 11 | 5 | 5 | 100% |
-| Phase 12 | 3 | 0 | 0% |
+| Phase 12 | 3 | 1 | 33% |
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **69** | **80%** |
+| **Total** | **86** | **70** | **81%** |

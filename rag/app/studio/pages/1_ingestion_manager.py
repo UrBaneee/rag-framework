@@ -38,18 +38,41 @@ with st.sidebar:
     st.divider()
     st.subheader("Embedding")
     embedding_provider = st.selectbox(
-        "Provider", ["openai", "none"], index=0
+        "Provider",
+        ["openai", "multilingual", "none"],
+        index=0,
+        help=(
+            "**openai** — OpenAI API (requires OPENAI_API_KEY). Fast, high quality.\n\n"
+            "**multilingual** — Local sentence-transformers model. No API key needed. "
+            "Supports 50+ languages; enables cross-lingual retrieval "
+            "(e.g. Chinese query finds English documents).\n\n"
+            "**none** — Skip embedding (BM25 only)."
+        ),
     )
+
+    # Provider-specific defaults
+    _MULTILINGUAL_DEFAULT_MODEL = "paraphrase-multilingual-mpnet-base-v2"
+    _MULTILINGUAL_DEFAULT_DIM = 768
+    _OPENAI_DEFAULT_MODEL = "text-embedding-3-small"
+    _OPENAI_DEFAULT_DIM = 1536
+
+    if embedding_provider == "multilingual":
+        default_model = _MULTILINGUAL_DEFAULT_MODEL
+        default_dim = _MULTILINGUAL_DEFAULT_DIM
+    else:
+        default_model = _OPENAI_DEFAULT_MODEL
+        default_dim = _OPENAI_DEFAULT_DIM
+
     embedding_model = st.text_input(
         "Model",
-        value="text-embedding-3-small",
+        value=default_model,
         disabled=(embedding_provider == "none"),
     )
     vector_dimension = st.number_input(
         "Vector dimension",
         min_value=1,
         max_value=4096,
-        value=1536,
+        value=default_dim,
         disabled=(embedding_provider == "none"),
     )
 
@@ -105,16 +128,22 @@ if run_btn and uploaded_file is not None:
             vec_index = None
             kw_index = None
 
-            if embedding_provider == "openai":
-                from rag.infra.embedding.openai_embedding import OpenAIEmbeddingProvider
-                from rag.infra.indexes.bm25_local import BM25LocalIndex
+            if embedding_provider in ("openai", "multilingual"):
                 from rag.infra.indexes.faiss_local import FaissLocalIndex
                 from rag.infra.indexes.index_manager import IndexManager
 
-                embed_provider = OpenAIEmbeddingProvider(
-                    model=embedding_model,
-                    dimensions=int(vector_dimension),
-                )
+                if embedding_provider == "openai":
+                    from rag.infra.embedding.openai_embedding import OpenAIEmbeddingProvider
+                    embed_provider = OpenAIEmbeddingProvider(
+                        model=embedding_model,
+                        dimensions=int(vector_dimension),
+                    )
+                else:  # multilingual
+                    from rag.infra.embedding.multilingual_embedding import MultilingualEmbeddingProvider
+                    embed_provider = MultilingualEmbeddingProvider(
+                        model=embedding_model,
+                        dim=int(vector_dimension),
+                    )
 
                 # Check for dimension mismatch against existing index
                 faiss_path = Path(index_dir) / "faiss.index"

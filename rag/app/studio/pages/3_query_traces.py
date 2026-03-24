@@ -38,13 +38,25 @@ with st.sidebar:
     top_k = st.number_input("top_k per index", min_value=1, max_value=50, value=10)
 
     st.subheader("Embedding")
-    embedding_provider = st.selectbox("Provider", ["openai", "none"], index=0)
+    embedding_provider = st.selectbox(
+        "Provider", ["openai", "multilingual", "none"], index=0,
+        help=(
+            "**openai** — OpenAI API (requires OPENAI_API_KEY).\n\n"
+            "**multilingual** — Local sentence-transformers, no API key, "
+            "cross-lingual retrieval.\n\n"
+            "**none** — BM25 only."
+        ),
+    )
+    _ml_model = "paraphrase-multilingual-mpnet-base-v2"
+    _ml_dim = 768
     embedding_model = st.text_input(
-        "Model", value="text-embedding-3-small",
+        "Model",
+        value=_ml_model if embedding_provider == "multilingual" else "text-embedding-3-small",
         disabled=(embedding_provider == "none"),
     )
     vector_dimension = st.number_input(
-        "Vector dimension", min_value=1, max_value=4096, value=1536,
+        "Vector dimension", min_value=1, max_value=4096,
+        value=_ml_dim if embedding_provider == "multilingual" else 1536,
         disabled=(embedding_provider == "none"),
     )
 
@@ -112,7 +124,14 @@ if submitted:
                         model=embedding_model,
                         dimensions=int(vector_dimension),
                     )
-                    vec_index = mgr.vector_index
+                    vec_index = mgr.faiss
+                elif embedding_provider == "multilingual":
+                    from rag.infra.embedding.multilingual_embedding import MultilingualEmbeddingProvider
+                    embed_provider = MultilingualEmbeddingProvider(
+                        model=embedding_model,
+                        dim=int(vector_dimension),
+                    )
+                    vec_index = mgr.faiss
 
                 composer = None
                 if enable_generation:
@@ -126,7 +145,7 @@ if submitted:
                     )
 
                 pipeline = QueryPipeline(
-                    keyword_index=mgr.keyword_index,
+                    keyword_index=mgr.bm25,
                     trace_store=trace_store,
                     vector_index=vec_index,
                     embedding_provider=embed_provider,

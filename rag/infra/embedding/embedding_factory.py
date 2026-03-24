@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 # "module.path:ClassName" strings for lazy import.
 _PROVIDER_REGISTRY: dict[str, str] = {
     "openai": "rag.infra.embedding.openai_embedding:OpenAIEmbeddingProvider",
+    # Local multilingual model — no API key required, supports 50+ languages.
+    # Enables cross-lingual retrieval (Chinese query → English doc, etc.)
+    "multilingual": "rag.infra.embedding.multilingual_embedding:MultilingualEmbeddingProvider",
 }
 
 

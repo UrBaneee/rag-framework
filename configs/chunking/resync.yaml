@@ -1,0 +1,26 @@
+# Resync engine configuration — Task 11.4
+#
+# Controls how the incremental ingest pipeline handles document updates.
+# All thresholds are expressed as fractions (0.0–1.0) of the total chunk count.
+
+resync:
+  # Neighbourhood window: number of adjacent chunks on each side of a changed
+  # chunk that are also scheduled for re-embedding.  Set to 0 to re-embed
+  # only directly changed chunks.
+  window_size: 1
+
+  # Fallback threshold: if the fraction of chunks needing re-embedding is
+  # >= this value, the engine falls back to a full document re-embed.
+  # Set to 1.0 to disable the fallback entirely.
+  fallback_threshold: 0.8
+
+guardrails:
+  # Warning threshold: emit a WARNING log and a "resync_threshold_exceeded"
+  # trace event when the changed-chunk ratio exceeds this value.
+  # This fires before the fallback_threshold triggers a full re-embed.
+  warn_threshold: 0.5
+
+  # Error threshold: emit an ERROR log entry (but still continue) when the
+  # changed-chunk ratio exceeds this value.  Useful for alerting on
+  # near-complete rewrites that may indicate a data quality issue.
+  error_threshold: 0.9

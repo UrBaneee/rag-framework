@@ -6,6 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+try:
+    import yaml as _yaml
+except ImportError:  # pragma: no cover
+    _yaml = None  # type: ignore[assignment]
+
 from rag.core.interfaces.doc_store import BaseDocStore
 from rag.core.interfaces.embedding import BaseEmbeddingProvider
 from rag.core.interfaces.keyword_index import BaseKeywordIndex
@@ -93,6 +98,10 @@ class IngestPipeline:
         anchor_config_path: Path to anchors.yaml. None = auto-detect.
     """
 
+    # Default guardrail thresholds (used when no config file is found)
+    _DEFAULT_WARN_THRESHOLD: float = 0.5
+    _DEFAULT_ERROR_THRESHOLD: float = 0.9
+
     def __init__(
         self,
         doc_store: BaseDocStore,
@@ -105,6 +114,7 @@ class IngestPipeline:
         router_config_path: str | Path | None = None,
         quality_gate_config_path: str | Path | None = None,
         anchor_config_path: str | Path | None = None,
+        resync_config_path: str | Path | None = None,
     ) -> None:
         self._doc_store = doc_store
         self._trace_store = trace_store
@@ -130,6 +140,109 @@ class IngestPipeline:
             token_budget=token_budget,
             annotator_config_path=anchor_config_path,
         )
+
+        # Load resync guardrail config
+        self._warn_threshold, self._error_threshold = self._load_guardrail_config(
+            resync_config_path
+        )
+
+    def _load_guardrail_config(
+        self, config_path: str | Path | None
+    ) -> tuple[float, float]:
+        """Load warn/error thresholds from resync.yaml, with fallback to defaults.
+
+        Args:
+            config_path: Explicit path to resync.yaml, or None for auto-detect.
+
+        Returns:
+            ``(warn_threshold, error_threshold)`` tuple.
+        """
+        if _yaml is None:
+            return self._DEFAULT_WARN_THRESHOLD, self._DEFAULT_ERROR_THRESHOLD
+
+        candidates: list[Path] = []
+        if config_path is not None:
+            candidates.append(Path(config_path))
+        else:
+            # Auto-detect relative to this file's package root
+            pkg_root = Path(__file__).parent.parent
+            candidates.append(pkg_root / "configs" / "chunking" / "resync.yaml")
+            candidates.append(Path("configs") / "chunking" / "resync.yaml")
+
+        for path in candidates:
+            if path.exists():
+                try:
+                    data = _yaml.safe_load(path.read_text()) or {}
+                    guardrails = data.get("guardrails", {})
+                    warn = float(guardrails.get("warn_threshold", self._DEFAULT_WARN_THRESHOLD))
+                    error = float(guardrails.get("error_threshold", self._DEFAULT_ERROR_THRESHOLD))
+                    logger.debug("Loaded resync guardrails from '%s'", path)
+                    return warn, error
+                except Exception as exc:  # pragma: no cover
+                    logger.warning("Failed to load resync config '%s': %s", path, exc)
+
+        return self._DEFAULT_WARN_THRESHOLD, self._DEFAULT_ERROR_THRESHOLD
+
+    def _check_resync_guardrails(
+        self,
+        block_diff: "BlockDiffResult",
+        source_path: str,
+        run_id: str,
+    ) -> None:
+        """Emit log warnings and trace events when change ratio exceeds thresholds.
+
+        Args:
+            block_diff: Populated BlockDiffResult from the current ingest run.
+            source_path: Absolute path to the source file (for log messages).
+            run_id: Current TraceStore run identifier.
+        """
+        total = block_diff.unchanged_count + block_diff.added_count + block_diff.removed_count
+        if total == 0:
+            return
+
+        changed = block_diff.added_count + block_diff.removed_count
+        ratio = changed / total
+
+        if ratio >= self._error_threshold:
+            logger.error(
+                "Resync guardrail ERROR: changed ratio %.2f >= %.2f for '%s' "
+                "(+%d added, -%d removed, %d unchanged)",
+                ratio, self._error_threshold, source_path,
+                block_diff.added_count, block_diff.removed_count, block_diff.unchanged_count,
+            )
+            self._trace_store.save_run(
+                run_type="resync_threshold_exceeded",
+                metadata={
+                    "parent_run_id": run_id,
+                    "level": "error",
+                    "changed_ratio": ratio,
+                    "threshold": self._error_threshold,
+                    "blocks_added": block_diff.added_count,
+                    "blocks_removed": block_diff.removed_count,
+                    "blocks_unchanged": block_diff.unchanged_count,
+                    "source_path": source_path,
+                },
+            )
+        elif ratio >= self._warn_threshold:
+            logger.warning(
+                "Resync guardrail WARNING: changed ratio %.2f >= %.2f for '%s' "
+                "(+%d added, -%d removed, %d unchanged)",
+                ratio, self._warn_threshold, source_path,
+                block_diff.added_count, block_diff.removed_count, block_diff.unchanged_count,
+            )
+            self._trace_store.save_run(
+                run_type="resync_threshold_exceeded",
+                metadata={
+                    "parent_run_id": run_id,
+                    "level": "warning",
+                    "changed_ratio": ratio,
+                    "threshold": self._warn_threshold,
+                    "blocks_added": block_diff.added_count,
+                    "blocks_removed": block_diff.removed_count,
+                    "blocks_unchanged": block_diff.unchanged_count,
+                    "source_path": source_path,
+                },
+            )
 
     def ingest(self, source_path: str | Path) -> IngestResult:
         """Ingest a single document file end-to-end.
@@ -255,6 +368,8 @@ class IngestPipeline:
                     block_diff.removed_count,
                     block_diff.unchanged_count,
                 )
+                # 7c. Guardrail check — warn/error if change ratio exceeds thresholds
+                self._check_resync_guardrails(block_diff, source_path, run_id)
 
         self._doc_store.save_text_blocks(text_blocks)
 

@@ -115,12 +115,14 @@ class IngestPipeline:
         quality_gate_config_path: str | Path | None = None,
         anchor_config_path: str | Path | None = None,
         resync_config_path: str | Path | None = None,
+        index_dir: str | Path | None = None,
     ) -> None:
         self._doc_store = doc_store
         self._trace_store = trace_store
         self._embedding_provider = embedding_provider
         self._vector_index = vector_index
         self._keyword_index = keyword_index
+        self._index_dir = Path(index_dir) if index_dir else None
 
         self._loader = LocalFileLoader()
         self._sniffer = CompositeSniffer()
@@ -344,6 +346,21 @@ class IngestPipeline:
             "metadata": {**document.metadata, "content_hash": content_hash},
         })
 
+        # 4b. Identify stale chunks from the previous version (Task 11.5)
+        prev_doc_id: str | None = None
+        prev_chunk_ids: list[str] = []
+        if hasattr(self._doc_store, "get_prev_doc_id_for_source"):
+            prev_doc_id = self._doc_store.get_prev_doc_id_for_source(source_path)  # type: ignore[attr-defined]
+            if prev_doc_id and prev_doc_id != doc_id:
+                old_chunks = self._doc_store.get_chunks(prev_doc_id)
+                prev_chunk_ids = [c.chunk_id for c in old_chunks if c.chunk_id]
+                logger.debug(
+                    "Found %d stale chunks from previous version of '%s' (prev_doc_id=%s)",
+                    len(prev_chunk_ids),
+                    source_path,
+                    prev_doc_id,
+                )
+
         # 5. Store document
         self._doc_store.save_document(document)
 
@@ -415,6 +432,48 @@ class IngestPipeline:
                 self._vector_index.add(chunks)
 
         self._doc_store.save_chunks(chunks)
+
+        # 9b. Remove stale chunks from indexes (Task 11.5)
+        if prev_chunk_ids:
+            stale_removed = 0
+            for cid in prev_chunk_ids:
+                if self._keyword_index is not None:
+                    try:
+                        self._keyword_index.remove(cid)
+                        stale_removed += 1
+                    except Exception:
+                        pass
+                if self._vector_index is not None:
+                    try:
+                        self._vector_index.remove(cid)
+                    except Exception:
+                        pass
+            logger.debug(
+                "Removed %d stale chunk(s) from indexes for '%s'",
+                stale_removed,
+                source_path,
+            )
+
+        # 9c. Persist updated indexes to disk (Task 11.5)
+        if self._index_dir and (self._keyword_index is not None or self._vector_index is not None):
+            self._index_dir.mkdir(parents=True, exist_ok=True)
+            if self._keyword_index is not None:
+                self._keyword_index.save(str(self._index_dir / "bm25.index"))
+            if self._vector_index is not None:
+                self._vector_index.save(str(self._index_dir / "faiss.index"))
+            logger.debug("Saved updated indexes to '%s'", self._index_dir)
+
+        # 9d. Delete old document version from DocStore (Task 11.5)
+        if prev_doc_id and prev_doc_id != doc_id:
+            try:
+                self._doc_store.delete_document(prev_doc_id)
+                logger.debug(
+                    "Deleted previous document version '%s' from DocStore", prev_doc_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to delete previous document '%s': %s", prev_doc_id, exc
+                )
 
         logger.info(
             "Ingested '%s': %d blocks, %d chunks, %d embed tokens (run=%s)",

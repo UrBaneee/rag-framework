@@ -296,6 +296,25 @@ class SQLiteDocStore(BaseDocStore):
             for row in rows
         ]
 
+    def get_prev_doc_id_for_source(self, source_path: str) -> Optional[str]:
+        """Return the doc_id of the most recently stored version of a source path.
+
+        Used by Task 11.5 (stale chunk removal) to identify the previous
+        document version before its chunks are purged from the indexes.
+
+        Args:
+            source_path: Absolute path to the source file.
+
+        Returns:
+            doc_id string if a previous version exists, otherwise None.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT doc_id FROM documents WHERE source_path = ? ORDER BY rowid DESC LIMIT 1",
+                (source_path,),
+            ).fetchone()
+        return row["doc_id"] if row else None
+
     def get_prev_blocks_for_source(self, source_path: str) -> list[TextBlock]:
         """Fetch blocks for the most recently stored version of a source path.
 

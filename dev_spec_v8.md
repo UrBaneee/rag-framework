@@ -2641,7 +2641,7 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 11.2 | Implement block diff logic | [x] | 2026-03-23 | BlockDiffResult + diff_blocks() in hashing.py; get_prev_blocks_for_source() in docstore; diff stats on IngestResult |
 | 11.3 | Implement resync engine | [x] | 2026-03-23 | ResyncWindow + ResyncHybrid; windowed reembed + fallback + ResyncStats |
 | 11.4 | Add threshold guardrails | [x] | 2026-03-23 | configs/chunking/resync.yaml + _check_resync_guardrails() in IngestPipeline; warn/error trace events |
-| 11.5 | Remove stale chunks from indexes after incremental update | [ ] | - | |
+| 11.5 | Remove stale chunks from indexes after incremental update | [x] | 2026-03-23 | get_prev_doc_id_for_source() in DocStore; stale remove + index save + old doc delete in IngestPipeline |
 
 ### Phase 12 — Nice-to-Have but Still Useful
 
@@ -2694,9 +2694,9 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 8 | 4 | 4 | 100% |
 | Phase 9 | 3 | 3 | 100% |
 | Phase 10 | 6 | 6 | 100% |
-| Phase 11 | 5 | 4 | 80% |
+| Phase 11 | 5 | 5 | 100% |
 | Phase 12 | 3 | 0 | 0% |
 | Phase 13 | 4 | 0 | 0% |
 | Phase 14 | 3 | 0 | 0% |
 | Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **68** | **79%** |
+| **Total** | **86** | **69** | **80%** |

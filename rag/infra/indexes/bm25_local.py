@@ -13,16 +13,47 @@ logger = logging.getLogger(__name__)
 
 _INDEX_FILENAME = "bm25.pkl"
 
+# Jieba Chinese word segmenter — optional but required for CJK BM25 to work.
+# Without it, Chinese text is treated as a single token and BM25 scores 0.
+try:
+    import jieba as _jieba
+    _jieba.setLogLevel(logging.WARNING)  # suppress jieba's verbose init logs
+    _JIEBA_AVAILABLE = True
+except ImportError:
+    _JIEBA_AVAILABLE = False
+
+# Matches any CJK Unified Ideograph (core Chinese characters)
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+
+
+def _has_cjk(text: str) -> bool:
+    """Return True if *text* contains at least one CJK character."""
+    return bool(_CJK_RE.search(text))
+
 
 def _tokenize(text: str) -> list[str]:
-    """Lowercase and split text into tokens.
+    """Tokenize text for BM25 indexing and querying.
+
+    Strategy:
+    - CJK text  -> jieba word segmentation (e.g. "帆海资本" -> ["帆海", "资本"])
+                   Falls back to single-character tokens when jieba is absent.
+    - Latin text -> lowercase alphanumeric split (unchanged behaviour).
 
     Args:
         text: Raw text string.
 
     Returns:
-        List of lowercase alphanumeric tokens.
+        List of tokens suitable for BM25 scoring.
     """
+    if _has_cjk(text):
+        if _JIEBA_AVAILABLE:
+            return [t for t in _jieba.cut(text) if t.strip()]
+        else:
+            logger.warning(
+                "jieba not installed -- CJK text tokenized as characters. "
+                "Install with: pip install jieba"
+            )
+            return [ch for ch in text if ch.strip()]
     return re.findall(r"\w+", text.lower())
 
 

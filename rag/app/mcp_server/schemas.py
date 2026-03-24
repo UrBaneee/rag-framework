@@ -1,4 +1,4 @@
-"""MCP tool schemas — Pydantic v2 models for rag.ingest, rag.query, rag.eval.run."""
+"""MCP tool schemas — Pydantic v2 models for rag.ingest, rag.query, rag.eval.run, rag.sync_source."""
 
 from __future__ import annotations
 
@@ -242,4 +242,79 @@ class EvalRunToolOutput(BaseModel):
     num_queries: int = Field(default=0, ge=0)
     elapsed_ms: float = Field(default=0.0, ge=0.0)
     output_path: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# rag.sync_source
+# ---------------------------------------------------------------------------
+
+
+class SyncSourceToolInput(BaseModel):
+    """Input schema for the ``rag.sync_source`` MCP tool.
+
+    Attributes:
+        connector: Connector name to sync.  Must match one of the registered
+            ``connector_name`` values: ``"email"``, ``"slack"``, ``"notion"``,
+            ``"google_docs"``.
+        since_cursor: Optional override cursor.  If omitted, the last persisted
+            cursor is loaded from the DocStore.
+        db_path: Path to the SQLite database file.
+        index_dir: Directory for BM25 and FAISS index files.
+        token_budget: Maximum tokens per ingested chunk.
+        embedding_provider: Embedding provider key, or None to skip embedding.
+        embedding_model: Model identifier for the embedding provider.
+        vector_dimension: Expected vector dimensionality.
+    """
+
+    connector: str = Field(
+        ...,
+        description="Connector name: email | slack | notion | google_docs",
+    )
+    since_cursor: Optional[str] = Field(
+        default=None,
+        description="Optional cursor override (ISO timestamp or UID). "
+        "Defaults to the last persisted cursor.",
+    )
+    db_path: str = Field(default="data/rag.db")
+    index_dir: str = Field(default="data/indexes")
+    token_budget: int = Field(default=512, ge=64, le=4096)
+    embedding_provider: Optional[str] = Field(default=None)
+    embedding_model: str = Field(default="text-embedding-3-small")
+    vector_dimension: int = Field(default=1536, ge=1, le=8192)
+
+    @field_validator("connector")
+    @classmethod
+    def validate_connector(cls, v: str) -> str:
+        valid = {"email", "slack", "notion", "google_docs"}
+        if v not in valid:
+            raise ValueError(f"Unknown connector '{v}'. Valid options: {valid}")
+        return v
+
+
+class SyncSourceToolOutput(BaseModel):
+    """Output schema for the ``rag.sync_source`` MCP tool.
+
+    Attributes:
+        connector: Connector name that was synced.
+        fetched: Total artifacts returned by the connector.
+        ingested: Artifacts successfully ingested.
+        skipped: Artifacts skipped (no content / already up-to-date).
+        failed: Artifacts that failed during ingest.
+        cursor_before: Cursor at the start of the sync run.
+        cursor_after: New cursor persisted after the sync run.
+        elapsed_ms: Total wall-clock time in milliseconds.
+        run_id: TraceStore run identifier.
+        error: Error message if the sync failed, or None on success.
+    """
+
+    connector: str
+    fetched: int = Field(default=0, ge=0)
+    ingested: int = Field(default=0, ge=0)
+    skipped: int = Field(default=0, ge=0)
+    failed: int = Field(default=0, ge=0)
+    cursor_before: str = ""
+    cursor_after: str = ""
+    elapsed_ms: float = Field(default=0.0, ge=0.0)
+    run_id: str = ""
     error: Optional[str] = None

@@ -1,4 +1,4 @@
-"""MCP server — exposes rag.ingest, rag.query, and rag.eval.run tools."""
+"""MCP server — exposes rag.ingest, rag.query, rag.eval.run, and rag.sync_source tools."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ from rag.app.mcp_server.schemas import (
     MetricResult,
     QueryToolInput,
     QueryToolOutput,
+    SyncSourceToolInput,
+    SyncSourceToolOutput,
 )
 from rag.app.mcp_server.wiring import build_ingest_pipeline, build_query_pipeline
 
@@ -268,6 +270,96 @@ def rag_eval_run(input: EvalRunToolInput) -> EvalRunToolOutput:
         logger.exception("rag.eval.run failed: %s", exc)
         return EvalRunToolOutput(
             dataset_path=input.dataset_path,
+            error=str(exc),
+        )
+
+
+# ---------------------------------------------------------------------------
+# rag.sync_source
+# ---------------------------------------------------------------------------
+
+#: Registry mapping connector names to their import paths
+_CONNECTOR_REGISTRY: dict[str, str] = {
+    "email": "rag.infra.connectors.email_connector.EmailConnector",
+    "slack": "rag.infra.connectors.slack_connector.SlackConnector",
+    "notion": "rag.infra.connectors.notion_connector.NotionConnector",
+    "google_docs": "rag.infra.connectors.google_docs_connector.GoogleDocsConnector",
+}
+
+
+def _load_connector(connector_name: str):
+    """Dynamically import and instantiate a connector by name."""
+    import importlib
+
+    dotted = _CONNECTOR_REGISTRY[connector_name]
+    module_path, class_name = dotted.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    cls = getattr(module, class_name)
+    return cls()
+
+
+@mcp.tool(
+    name="rag.sync_source",
+    description=(
+        "Sync an external source (email, slack, notion, google_docs) into the RAG corpus. "
+        "Fetches new/updated items since the last cursor, ingests them, and persists "
+        "the updated cursor for the next run."
+    ),
+)
+def rag_sync_source(input: SyncSourceToolInput) -> SyncSourceToolOutput:
+    """Trigger a connector sync and ingest cycle.
+
+    Args:
+        input: Validated SyncSourceToolInput payload.
+
+    Returns:
+        SyncSourceToolOutput with fetched/ingested/skipped/failed counts and cursor.
+    """
+    logger.info("rag.sync_source called: connector=%s", input.connector)
+    try:
+        from rag.infra.stores.docstore_sqlite import SQLiteDocStore
+        from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+        from rag.pipelines.connector_sync_pipeline import ConnectorSyncPipeline
+
+        connector = _load_connector(input.connector)
+
+        ingest_pipeline = build_ingest_pipeline(
+            db_path=input.db_path,
+            index_dir=input.index_dir,
+            token_budget=input.token_budget,
+            embedding_provider=input.embedding_provider,
+            embedding_model=input.embedding_model,
+            vector_dimension=input.vector_dimension,
+        )
+        doc_store = SQLiteDocStore(input.db_path)
+        trace_store = SQLiteTraceStore(input.db_path)
+
+        pipeline = ConnectorSyncPipeline(
+            connector=connector,
+            ingest_pipeline=ingest_pipeline,
+            doc_store=doc_store,
+            trace_store=trace_store,
+        )
+
+        result = pipeline.run(since_cursor=input.since_cursor)
+
+        return SyncSourceToolOutput(
+            connector=input.connector,
+            fetched=result.fetched,
+            ingested=result.ingested,
+            skipped=result.skipped,
+            failed=result.failed,
+            cursor_before=result.cursor_before,
+            cursor_after=result.cursor_after,
+            elapsed_ms=result.elapsed_ms,
+            run_id=result.run_id,
+            error=result.error,
+        )
+
+    except Exception as exc:
+        logger.exception("rag.sync_source failed: %s", exc)
+        return SyncSourceToolOutput(
+            connector=input.connector,
             error=str(exc),
         )
 

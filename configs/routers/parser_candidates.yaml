@@ -26,6 +26,12 @@ routes:
   markdown:
     candidates: [md_parser]
 
+  docx:
+    candidates: [docx_parser]
+
+  xlsx:
+    candidates: [xlsx_parser]
+
   # Unsupported types — empty candidate list triggers explicit unsupported result
   unsupported:
     candidates: []

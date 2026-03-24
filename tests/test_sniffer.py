@@ -87,10 +87,10 @@ class TestMimeSniffer:
         result = self.sniffer.sniff(artifact)
         assert result.detected_type == "html"
 
-    def test_detects_docx_as_unsupported(self):
+    def test_detects_docx(self):
         artifact = make_artifact(b"PK...", ".docx")
         result = self.sniffer.sniff(artifact)
-        assert result.detected_type == "unsupported"
+        assert result.detected_type == "docx"
 
     def test_unknown_extension_returns_none(self):
         artifact = make_artifact(b"data", ".xyz")
@@ -132,7 +132,7 @@ class TestCompositeSniffer:
     def test_docx_specialised_from_zip(self, tmp_path):
         artifact = make_artifact(b"PK\x03\x04" + b"\x00" * 50, ".docx")
         result = self.sniffer.sniff(artifact)
-        assert result.detected_type == "unsupported"
+        assert result.detected_type == "docx"
         assert result.strategy == "zip_specialised"
 
     def test_unsupported_explicit_for_png(self):

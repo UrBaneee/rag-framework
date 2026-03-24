@@ -13,7 +13,7 @@ from rag.infra.sniffing.sniffer_mime import MimeSniffer
 _ZIP_EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ".docx": (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "unsupported",
+        "docx",
     ),
     ".pptx": (
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -21,7 +21,7 @@ _ZIP_EXTENSION_MAP: dict[str, tuple[str, str]] = {
     ),
     ".xlsx": (
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "unsupported",
+        "xlsx",
     ),
 }
 

@@ -21,9 +21,11 @@ from rag.infra.cleaning.cleaner_pipeline import CleanerPipeline
 from rag.infra.chunking.block_splitter_paragraph import ParagraphBlockSplitter
 from rag.infra.chunking.chunk_packer_anchor_aware import AnchorAwareChunkPacker
 from rag.infra.loading.local_file_loader import LocalFileLoader
+from rag.infra.parsing.docx_parser import DocxParser
 from rag.infra.parsing.html_trafilatura import HtmlTrafilaturaParser
 from rag.infra.parsing.md_parser import MdParser
 from rag.infra.parsing.pdf_pymupdf import PdfPyMuPDFParser
+from rag.infra.parsing.xlsx_parser import XlsxParser
 from rag.infra.sniffing.composite_sniffer import CompositeSniffer
 from rag.pipelines.parsing.orchestrator import ParserOrchestrator
 from rag.pipelines.parsing.quality_gates import QualityGateChecker
@@ -131,6 +133,8 @@ class IngestPipeline:
             "pymupdf": PdfPyMuPDFParser(),
             "trafilatura": HtmlTrafilaturaParser(),
             "md_parser": MdParser(),
+            "docx_parser": DocxParser(),
+            "xlsx_parser": XlsxParser(),
         }
         self._orchestrator = ParserOrchestrator(
             parser_registry, router_config_path=router_config_path

@@ -16,10 +16,10 @@ _EXT_MAP: dict[str, tuple[str, str]] = {
     ".txt":      ("text/plain",       "txt"),
     ".md":       ("text/markdown",    "markdown"),
     ".markdown": ("text/markdown",    "markdown"),
-    # V2 types — parsers not yet implemented
-    ".docx":     ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "unsupported"),
+    # Office document types
+    ".docx":     ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
     ".pptx":     ("application/vnd.openxmlformats-officedocument.presentationml.presentation", "unsupported"),
-    ".xlsx":     ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "unsupported"),
+    ".xlsx":     ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx"),
     # Images
     ".png":      ("image/png",        "unsupported"),
     ".jpg":      ("image/jpeg",       "unsupported"),

@@ -65,8 +65,8 @@ with st.sidebar:
 
 uploaded_file = st.file_uploader(
     "Choose a file to ingest",
-    type=["txt", "md", "pdf", "html", "htm"],
-    help="Supported formats: plain text, Markdown, PDF, HTML",
+    type=["txt", "md", "pdf", "html", "htm", "docx", "xlsx"],
+    help="Supported formats: plain text, Markdown, PDF, HTML, Word (.docx), Excel (.xlsx)",
 )
 
 run_btn = st.button("▶ Run Ingest", type="primary", disabled=(uploaded_file is None))
@@ -134,8 +134,8 @@ if run_btn and uploaded_file is not None:
                         pass  # Corrupted or incompatible — will be overwritten
 
                 mgr = IndexManager(index_dir=index_dir)
-                vec_index = mgr.vector_index
-                kw_index = mgr.keyword_index
+                vec_index = mgr.faiss
+                kw_index = mgr.bm25
 
             # Write upload to a temp file
             suffix = Path(uploaded_file.name).suffix

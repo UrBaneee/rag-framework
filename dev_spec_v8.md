@@ -2697,6 +2697,15 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 11 | 5 | 5 | 100% |
 | Phase 12 | 3 | 3 | 100% |
 | Phase 13 | 4 | 4 | 100% |
-| Phase 14 | 3 | 0 | 0% |
-| Phase 15 | 6 | 0 | 0% |
-| **Total** | **86** | **76** | **88%** |
+| Phase 14 | 3 | 3 | 100% |
+| Phase 15 | 6 | 6 | 100% |
+| **Total** | **86** | **85** | **99%** |
+
+---
+
+## Post-Ship Bug Fixes
+
+| Date | File | Issue | Fix |
+|---|---|---|---|
+| 2026-03-24 | `rag/app/studio/pages/1_ingestion_manager.py` | `No module named 'rag.infra.db'` — stale import path | Updated to `rag.infra.stores.docstore_sqlite` / `tracestore_sqlite` |
+| 2026-03-24 | `rag/app/studio/components/trace_viewer.py` | Timestamps displayed in UTC instead of local time | Added `_utc_to_local()` helper; applied to summary table, run selector, and event body |

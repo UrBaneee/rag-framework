@@ -2,9 +2,33 @@
 
 from __future__ import annotations
 
+import datetime
 from typing import Any
 
 import streamlit as st
+
+
+def _utc_to_local(utc_str: str) -> str:
+    """Convert a UTC datetime string (from SQLite) to the local timezone.
+
+    Args:
+        utc_str: ISO 8601 string in UTC, e.g. ``"2026-03-24 01:27:58"``.
+
+    Returns:
+        Local-time string formatted as ``"2026-03-23 18:27:58 PDT"``.
+        Falls back to the original string on any parse error.
+    """
+    if not utc_str:
+        return utc_str
+    try:
+        # SQLite datetime('now') produces "YYYY-MM-DD HH:MM:SS" (no tz suffix)
+        dt_utc = datetime.datetime.fromisoformat(utc_str.replace(" ", "T"))
+        dt_utc = dt_utc.replace(tzinfo=datetime.timezone.utc)
+        dt_local = dt_utc.astimezone()
+        tz_name = dt_local.strftime("%Z")
+        return dt_local.strftime(f"%Y-%m-%d %H:%M:%S {tz_name}")
+    except Exception:
+        return utc_str
 
 # ---------------------------------------------------------------------------
 # Stage ordering and display config
@@ -59,7 +83,7 @@ def render_run_selector(runs: list[dict[str, Any]], label: str = "Select a run")
         return None
 
     options = {
-        f"{r['run_id'][:8]}… | {r.get('created_at', '')[:19]} | "
+        f"{r['run_id'][:8]}… | {_utc_to_local(r.get('created_at', '')[:19])} | "
         f"{r.get('metadata', {}).get('source_path', 'unknown')!r}": r["run_id"]
         for r in runs
     }
@@ -113,7 +137,7 @@ def _render_event_body(event: dict[str, Any]) -> None:
     meta = event.get("metadata", {})
     created_at = event.get("created_at", "")
     if created_at:
-        st.caption(f"Recorded at: {created_at[:19]}")
+        st.caption(f"Recorded at: {_utc_to_local(created_at[:19])}")
 
     if not meta:
         st.markdown("*(no metadata)*")
@@ -159,6 +183,6 @@ def render_run_summary_table(runs: list[dict[str, Any]]) -> None:
             ) else "—",
             "Elapsed ms": meta.get("elapsed_ms", "—"),
             "Chunks": meta.get("chunk_count", "—"),
-            "Time": r.get("created_at", "")[:19],
+            "Time": _utc_to_local(r.get("created_at", "")[:19]),
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

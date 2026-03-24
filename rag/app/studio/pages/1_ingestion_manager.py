@@ -89,8 +89,8 @@ if run_btn and uploaded_file is not None:
 
     with st.spinner(f"Ingesting **{uploaded_file.name}** …"):
         try:
-            from rag.infra.db.sqlite_doc_store import SQLiteDocStore
-            from rag.infra.db.sqlite_trace_store import SQLiteTraceStore
+            from rag.infra.stores.docstore_sqlite import SQLiteDocStore
+            from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
             from rag.pipelines.ingest_pipeline import IngestPipeline
 
             # Ensure directories exist

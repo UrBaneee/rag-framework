@@ -8,6 +8,7 @@ This module is built incrementally across Phase 5 tasks:
 """
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +27,63 @@ from rag.core.interfaces.vector_index import BaseVectorIndex
 from rag.infra.indexes.rrf_fusion import RRFFusion
 
 logger = logging.getLogger(__name__)
+
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
+
+
+def _has_cjk(text: str) -> bool:
+    """Return True if text contains CJK characters."""
+    return bool(_CJK_RE.search(text))
+
+
+def _language_filter(
+    query: str,
+    candidates: list[Candidate],
+    min_results: int = 1,
+) -> list[Candidate]:
+    """Remove candidates whose language doesn't match the query language.
+
+    A candidate is dropped when ALL of the following hold:
+      1. The query contains CJK characters (Chinese/Japanese/Korean query).
+      2. The candidate's text contains NO CJK characters (Latin-script chunk).
+      3. The candidate has bm25_score == 0 (no keyword overlap — purely a
+         vector-similarity match, i.e. a semantic fluke, not a real hit).
+
+    Rule 3 is intentional: if a Latin chunk somehow scored in BM25 it means
+    there was genuine token overlap (e.g. a named entity like "GPT-4" appearing
+    in both), so we keep it.
+
+    ``min_results`` ensures we never return an empty list — the best-scoring
+    candidates are kept as fallback even if they would otherwise be filtered.
+
+    Args:
+        query: Raw query string.
+        candidates: RRF-fused candidates in ranked order.
+        min_results: Minimum number of candidates to always retain.
+
+    Returns:
+        Filtered candidate list, length >= min(min_results, len(candidates)).
+    """
+    if not _has_cjk(query):
+        return candidates  # Non-CJK query — no language filtering needed
+
+    kept = [
+        c for c in candidates
+        if _has_cjk(c.stable_text or c.display_text or "")
+        or (c.bm25_score or 0.0) > 0.0
+    ]
+
+    # Safety: never return fewer than min_results
+    if len(kept) < min_results:
+        kept = candidates[:min_results]
+
+    removed = len(candidates) - len(kept)
+    if removed:
+        logger.debug(
+            "Language filter removed %d non-CJK candidate(s) with zero BM25 score.",
+            removed,
+        )
+    return kept
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +343,10 @@ class QueryPipeline:
             fused = self._fusion.fuse(ranked_lists)[: self._top_k]
         else:
             fused = []
+
+        # 4b. Language filter — remove cross-language candidates that have no
+        # keyword overlap (zero BM25) and don't share the query's script.
+        fused = _language_filter(query, fused, min_results=1)
 
         # 5. Record pre-rerank order in trace
         pre_rerank_ids = [c.chunk_id for c in fused]

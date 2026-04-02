@@ -365,3 +365,10 @@ Chunk IDs are content-based hashes. If you change the parser or chunking setting
 
 **Streamlit shows a blank page**
 Try a hard refresh (`Cmd+Shift+R` on macOS, `Ctrl+Shift+R` on Windows/Linux). If it persists, restart Streamlit.
+
+---
+
+## Acknowledgements
+
+This project was inspired in part by [jerry-ai-dev/MODULAR-RAG-MCP-SERVER](https://github.com/jerry-ai-dev/MODULAR-RAG-MCP-SERVER).
+

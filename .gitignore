@@ -76,6 +76,9 @@ htmlcov/
 *.log
 logs/
 
+# ── Personal / sensitive eval data ───────────────────────
+tests/fixtures/resume_qrels.json
+
 # ── Temp files ────────────────────────────────────────────
 *.tmp
 *.bak

@@ -100,3 +100,11 @@ def _ensure_builtins_registered() -> None:
         except ImportError:
             # voyageai not installed — voyage provider silently unavailable
             pass
+
+    if "crossencoder" not in _RERANKER_REGISTRY:
+        try:
+            from rag.infra.rerank.crossencoder_reranker import CrossEncoderReranker
+            register_reranker("crossencoder", CrossEncoderReranker)
+        except ImportError:
+            # sentence-transformers not installed — crossencoder silently unavailable
+            pass

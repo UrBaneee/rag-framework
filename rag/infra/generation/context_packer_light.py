@@ -11,7 +11,7 @@ from rag.core.contracts.citation import Citation
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_TOP_K = 3
+_DEFAULT_TOP_K = 6
 _DEFAULT_TOKEN_BUDGET = 2048
 
 

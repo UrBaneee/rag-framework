@@ -43,7 +43,7 @@ class BasicAnswerComposer:
 
     Args:
         llm_client: Any ``BaseLLMClient`` implementation.
-        top_k: Maximum chunks to pack into context. Defaults to 3.
+        top_k: Maximum chunks to pack into context. Defaults to 6.
         token_budget: Maximum context tokens. Defaults to 2048.
         system_instructions: Override default grounding instructions.
     """
@@ -51,7 +51,7 @@ class BasicAnswerComposer:
     def __init__(
         self,
         llm_client: BaseLLMClient,
-        top_k: int = 3,
+        top_k: int = 6,
         token_budget: int = 2048,
         system_instructions: Optional[str] = None,
     ) -> None:

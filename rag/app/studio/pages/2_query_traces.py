@@ -61,8 +61,31 @@ with st.sidebar:
     )
 
     st.subheader("Context Packing")
-    context_top_k = st.number_input("context_top_k", min_value=1, max_value=20, value=3)
+    context_top_k = st.number_input("context_top_k", min_value=1, max_value=20, value=6)
     token_budget = st.number_input("token_budget", min_value=64, max_value=4096, value=2048)
+
+    st.subheader("Reranker")
+    reranker_provider = st.selectbox(
+        "Provider",
+        ["none", "crossencoder", "voyage"],
+        index=0,
+        help=(
+            "**none** — No reranking; RRF score is the final score.\n\n"
+            "**crossencoder** — Local cross-encoder (sentence-transformers). "
+            "No API key required. Downloads ~80 MB model on first use.\n\n"
+            "**voyage** — Voyage AI reranker API (requires VOYAGE_API_KEY)."
+        ),
+    )
+    _default_reranker_model = {
+        "crossencoder": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        "voyage": "rerank-2",
+    }.get(reranker_provider, "")
+    reranker_model = st.text_input(
+        "Reranker model",
+        value=_default_reranker_model,
+        disabled=(reranker_provider == "none"),
+        help="Model name for the selected reranker.",
+    )
 
     st.subheader("Generation")
     llm_model = st.text_input("LLM model", value="gpt-4o-mini")
@@ -144,12 +167,21 @@ if submitted:
                         token_budget=int(token_budget),
                     )
 
+                reranker = None
+                if reranker_provider == "crossencoder":
+                    from rag.infra.rerank.crossencoder_reranker import CrossEncoderReranker
+                    reranker = CrossEncoderReranker(model=reranker_model)
+                elif reranker_provider == "voyage":
+                    from rag.infra.rerank.voyage_rerank import VoyageReranker
+                    reranker = VoyageReranker(model=reranker_model)
+
                 pipeline = QueryPipeline(
                     keyword_index=mgr.bm25,
                     trace_store=trace_store,
                     vector_index=vec_index,
                     embedding_provider=embed_provider,
                     answer_composer=composer,
+                    reranker=reranker,
                     top_k=int(top_k),
                 )
 

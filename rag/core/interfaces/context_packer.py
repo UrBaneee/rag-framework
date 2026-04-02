@@ -14,7 +14,7 @@ class BaseContextPacker(ABC):
     prompt builder in the query pipeline.
 
     Default configuration (from Section 10):
-        context_top_k: 3
+        context_top_k: 6
         token_budget: 3000
     """
 

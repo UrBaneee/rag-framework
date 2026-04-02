@@ -70,13 +70,15 @@ def build_query_pipeline(
     db_path: str,
     index_dir: str,
     top_k: int = 10,
-    context_top_k: int = 3,
+    context_top_k: int = 6,
     token_budget: int = 2048,
     embedding_provider: Optional[str] = None,
     embedding_model: str = "text-embedding-3-small",
     vector_dimension: int = 1536,
     llm_model: str = "gpt-4o-mini",
     enable_generation: bool = True,
+    reranker_provider: Optional[str] = None,
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
 ):
     """Instantiate and return a configured QueryPipeline.
 
@@ -126,11 +128,20 @@ def build_query_pipeline(
             token_budget=token_budget,
         )
 
+    reranker = None
+    if reranker_provider == "crossencoder":
+        from rag.infra.rerank.crossencoder_reranker import CrossEncoderReranker
+        reranker = CrossEncoderReranker(model=reranker_model)
+    elif reranker_provider == "voyage":
+        from rag.infra.rerank.voyage_rerank import VoyageReranker
+        reranker = VoyageReranker(model=reranker_model)
+
     return QueryPipeline(
         keyword_index=mgr.bm25,
         trace_store=trace_store,
         vector_index=vec_index,
         embedding_provider=embed_provider,
         answer_composer=composer,
+        reranker=reranker,
         top_k=top_k,
     )

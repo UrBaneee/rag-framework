@@ -3,84 +3,132 @@
     "query_id": "eq_01",
     "query": "What is Retrieval-Augmented Generation?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "5b000bcc626859c157d5cd2f7d03fe956bbce23e889a339989df3f3775fc214d",
+      "fb4556e7155290704d991631818b95127a86ec2e8e429f4c777cc697164aba30",
+      "715c59d3ca3bf7fd38bcf845abe796d251262ed5cd2d74d40f9668c624359cb9"
+    ],
     "notes": "Foundational definition query — core concept should be retrievable from any RAG-related corpus."
   },
   {
     "query_id": "eq_02",
     "query": "How does BM25 keyword search work?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "74a95a857ba0195cd1b941323e33aedfdcb5c0a73e85dbf9af696b939188f9d6",
+      "d04e76c0836f0a6a7b8b8eceebd41a05a8de19d6212d9b3d7e5213158311d091",
+      "c9666f202c6f25aabaa7a0c2b4f44958a776d088f2ff56396465bebd5ad8be67"
+    ],
     "notes": "Technical query about a named algorithm — should retrieve relevant passages."
   },
   {
     "query_id": "eq_03",
     "query": "What are the benefits of hybrid retrieval over BM25-only search?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "ca3677eac3489495a6348633f7007954ec80e92465df9eaf2aa13019538e8798",
+      "afbb249501d0aaa163051588544cea35ebff5c6c406763634aab8a51ad5223e9",
+      "5b000bcc626859c157d5cd2f7d03fe956bbce23e889a339989df3f3775fc214d"
+    ],
     "notes": "Comparative query combining two known concepts — tests multi-concept retrieval."
   },
   {
     "query_id": "eq_04",
     "query": "How does Reciprocal Rank Fusion merge results from multiple retrievers?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "a2af2a71143ea9337939a3bef280fc9a07dc80319e1cc655fae6ddc3b223d4a5",
+      "b3dc063c5ceea714343939d6dabc7ad5d0fe09c5c73e83f207b71ca8e7c13823",
+      "10d59cc525156ba3243173f6c3340375daebdafd9d19186a51644a35461893b5"
+    ],
     "notes": "Specific technical query about the RRF algorithm used in this framework."
   },
   {
     "query_id": "eq_05",
     "query": "What chunking strategies are used during document ingestion?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "d9cbb6dd8ff145efa81f5c452c0aca66b6cb8d1b8a09a89ac7465f27a608942e",
+      "975b70401452bf5059ed8498b184f98f7bb7ecec2e5f4f99c1ee62c688cfce27",
+      "b776d8b9337f8bc75bb9124292be68cf883630cbe2551b4032bef3b7fc154c1e"
+    ],
     "notes": "Process query — should surface passages about chunk packing and token budgets."
   },
   {
     "query_id": "eq_06",
     "query": "How does the system handle PDF documents?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "74a95a857ba0195cd1b941323e33aedfdcb5c0a73e85dbf9af696b939188f9d6",
+      "10d59cc525156ba3243173f6c3340375daebdafd9d19186a51644a35461893b5",
+      "e5a95956203fdd218a63f4d4ab299e4502ac48b14c4986320b67d67bef2d726b"
+    ],
     "notes": "Format-specific query — expects parser routing and PDF extraction coverage."
   },
   {
     "query_id": "eq_07",
     "query": "What is the purpose of the context packer in the query pipeline?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "6119ad1af2928055c2e4b7c658636b041ac28ea29be366ce708dc4ada866c400",
+      "f40c6abd31344451feab2d4cdb95ee709b3d042240ec9ba128d1214c4bc2913a",
+      "ee81da76d26e82e8e920724105b679272a6ce700bf7ed642b7a83323fd885686"
+    ],
     "notes": "Component-level query — should surface LightContextPacker design details."
   },
   {
     "query_id": "eq_08",
     "query": "How are citations generated from retrieved chunks?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "1ee04f83c36be3c02665f5f3b60516a94b11e0659a8ebcbcec5c2e5b3eb15801",
+      "cef350023dbed5e6c7e70147e724cb78d072e8af7d1518c817cc6961ea6540ed",
+      "9fc6663ae6f1fb9f46254ee6dca6af2a1abac32c6a642f15ab6d2398f4196347"
+    ],
     "notes": "Output-format query — tests retrieval of citation and answer composition design."
   },
   {
     "query_id": "eq_09",
     "query": "What metrics are used to evaluate retrieval quality?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "b3dc063c5ceea714343939d6dabc7ad5d0fe09c5c73e83f207b71ca8e7c13823",
+      "848bceda5ffaa1444b8807ad015452c07618487fa74b06f519288b727cdf3757",
+      "cef350023dbed5e6c7e70147e724cb78d072e8af7d1518c817cc6961ea6540ed"
+    ],
     "notes": "Evaluation query — expects Recall@K, MRR, nDCG coverage."
   },
   {
     "query_id": "eq_10",
     "query": "How does the reranker improve retrieval quality?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "718b99dbc2f37540ac2f54a4bc06513a8a80e48cfeaa2852196cd59e0778adb6",
+      "d2dd33374e74847d8140efd49e3ba959c4dd77478cbdc6831a9adc2535bfc48c",
+      "10d59cc525156ba3243173f6c3340375daebdafd9d19186a51644a35461893b5"
+    ],
     "notes": "Pipeline-step query — tests reranker description retrieval."
   },
   {
     "query_id": "eq_11",
     "query": "What is the role of the trace store in observability?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "3d0a41e9f08de2469adbc5247e3f5eb3d8b01a16be79a596deed776ab3bd9160",
+      "6119ad1af2928055c2e4b7c658636b041ac28ea29be366ce708dc4ada866c400",
+      "afbb249501d0aaa163051588544cea35ebff5c6c406763634aab8a51ad5223e9"
+    ],
     "notes": "Infrastructure query — should surface trace store design passages."
   },
   {
     "query_id": "eq_12",
     "query": "How does the system detect and remove duplicate chunks?",
     "expected_behavior": "answer",
-    "expected_sources": [],
+    "expected_sources": [
+      "2286b179ef91c22f61952e78393d0c0b9d9f1e094a1da07aff391f328c019c83",
+      "10d59cc525156ba3243173f6c3340375daebdafd9d19186a51644a35461893b5",
+      "b760f0c4192b3f289d044fe7016d0c57da66fd9aecacbead4f64ffddfbda6ea8"
+    ],
     "notes": "Deduplication query — tests retrieval of cleaning pipeline design."
   }
 ]

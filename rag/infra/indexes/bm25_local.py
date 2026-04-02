@@ -114,12 +114,22 @@ class BM25LocalIndex(BaseKeywordIndex):
         self._chunks.extend(chunks)
         self._rebuild()
 
-    def search(self, query: str, top_k: int) -> list[Candidate]:
+    def search(
+        self,
+        query: str,
+        top_k: int,
+        collection: str | None = None,
+    ) -> list[Candidate]:
         """Retrieve the top-k most relevant chunks by BM25 score.
 
         Args:
             query: Raw query string.
             top_k: Maximum number of candidates to return.
+            collection: Optional collection name to pre-filter the corpus before
+                scoring.  When provided, only chunks whose
+                ``metadata["collection"]`` matches are scored by BM25, which
+                prevents a large collection from drowning out a smaller one.
+                Falls back to the full corpus if no chunks match the filter.
 
         Returns:
             Candidates ordered by descending BM25 score.
@@ -131,10 +141,25 @@ class BM25LocalIndex(BaseKeywordIndex):
         tokens = _tokenize(query)
         scores: list[float] = self._bm25.get_scores(tokens).tolist()
 
-        # Pair each score with its chunk, sort descending, take top_k
-        scored = sorted(
-            zip(scores, self._chunks), key=lambda x: x[0], reverse=True
-        )[:top_k]
+        # Apply collection pre-filter: restrict scoring to matching chunks,
+        # keeping their global BM25 scores (computed over the full corpus).
+        chunk_score_pairs = list(zip(scores, self._chunks))
+        if collection:
+            filtered = [
+                (s, c) for s, c in chunk_score_pairs
+                if c.metadata.get("collection") == collection
+            ]
+            if filtered:
+                chunk_score_pairs = filtered
+            else:
+                logger.warning(
+                    "Collection pre-filter '%s' matched 0 chunks — "
+                    "falling back to full corpus.",
+                    collection,
+                )
+
+        # Sort descending by BM25 score, take top_k
+        scored = sorted(chunk_score_pairs, key=lambda x: x[0], reverse=True)[:top_k]
 
         candidates = []
         for score, chunk in scored:

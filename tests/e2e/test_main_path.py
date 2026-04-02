@@ -226,22 +226,22 @@ def test_streamlit_home_page_loads():
 
 
 def test_streamlit_ingestion_manager_loads():
-    mod = _import_page(str(_STUDIO_DIR / "pages/1_ingestion_manager.py"), "st_ingest")
+    mod = _import_page(str(_STUDIO_DIR / "pages/1_ingest_inspect.py"), "st_ingest")
     assert mod is not None
 
 
 def test_streamlit_ingestion_traces_loads():
-    mod = _import_page(str(_STUDIO_DIR / "pages/3_ingestion_traces.py"), "st_traces")
+    mod = _import_page(str(_STUDIO_DIR / "pages/1_ingest_inspect.py"), "st_ingest_inspect")
     assert mod is not None
 
 
 def test_streamlit_query_traces_loads():
-    mod = _import_page(str(_STUDIO_DIR / "pages/4_query_traces.py"), "st_query")
+    mod = _import_page(str(_STUDIO_DIR / "pages/2_query_traces.py"), "st_query")
     assert mod is not None
 
 
 def test_streamlit_evaluation_panel_loads():
-    mod = _import_page(str(_STUDIO_DIR / "pages/5_evaluation_panel.py"), "st_eval")
+    mod = _import_page(str(_STUDIO_DIR / "pages/3_evaluation_panel.py"), "st_eval")
     assert mod is not None
 
 

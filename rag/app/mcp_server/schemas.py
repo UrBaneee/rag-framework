@@ -1,4 +1,5 @@
-"""MCP tool schemas — Pydantic v2 models for rag.ingest, rag.query, rag.eval.run, rag.sync_source."""
+"""MCP tool schemas — Pydantic v2 models for rag.ingest, rag.query, rag.eval.run, rag.sync_source,
+retrieve, retrieve_with_metadata, list_collections."""
 
 from __future__ import annotations
 
@@ -81,7 +82,7 @@ class QueryToolInput(BaseModel):
     Attributes:
         query: Natural-language question to answer.
         top_k: Number of candidates to retrieve per index. Defaults to 10.
-        context_top_k: Chunks to pack into the LLM context window. Defaults to 3.
+        context_top_k: Chunks to pack into the LLM context window. Defaults to 6.
         token_budget: Token budget for context packing. Defaults to 2048.
         collection: Collection to query against. Defaults to ``"default"``.
         embedding_provider: Embedding provider key, or None to skip vector search.
@@ -95,7 +96,7 @@ class QueryToolInput(BaseModel):
 
     query: str = Field(..., min_length=1, description="Natural-language question")
     top_k: int = Field(default=10, ge=1, le=100)
-    context_top_k: int = Field(default=3, ge=1, le=20)
+    context_top_k: int = Field(default=6, ge=1, le=20)
     token_budget: int = Field(default=2048, ge=64, le=8192)
     collection: str = Field(default="default", min_length=1)
     embedding_provider: Optional[str] = Field(default=None)
@@ -317,4 +318,131 @@ class SyncSourceToolOutput(BaseModel):
     cursor_after: str = ""
     elapsed_ms: float = Field(default=0.0, ge=0.0)
     run_id: str = ""
+    error: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# retrieve / retrieve_with_metadata
+# ---------------------------------------------------------------------------
+
+
+class RetrieveInput(BaseModel):
+    """Input schema for the ``retrieve`` and ``retrieve_with_metadata`` MCP tools.
+
+    Attributes:
+        query: Natural-language search query.
+        top_k: Maximum number of chunks to return. Defaults to 5.
+        collection: Optional collection name to scope retrieval, e.g. ``"resumes"``
+            or ``"knowledge_base"``. When omitted, all collections are searched.
+        db_path: Path to the SQLite database file.
+        index_dir: Directory for BM25 and FAISS index files.
+        embedding_provider: Embedding provider key, or None to use BM25 only.
+        embedding_model: Model identifier for the embedding provider.
+        vector_dimension: Expected vector dimensionality.
+    """
+
+    query: str = Field(..., min_length=1, description="Natural-language search query")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of chunks to return")
+    collection: Optional[str] = Field(
+        default=None,
+        description="Scope retrieval to a collection, e.g. 'resumes' or 'knowledge_base'",
+    )
+    db_path: str = Field(default="data/rag.db")
+    index_dir: str = Field(default="data/indexes")
+    embedding_provider: Optional[str] = Field(default=None)
+    embedding_model: str = Field(default="text-embedding-3-small")
+    vector_dimension: int = Field(default=1536, ge=1, le=8192)
+
+    @field_validator("query")
+    @classmethod
+    def query_not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("query must not be blank")
+        return v
+
+
+class ChunkResult(BaseModel):
+    """A single retrieved chunk for the ``retrieve`` tool.
+
+    Attributes:
+        content: Raw text content of the chunk.
+        score: RRF fusion score (higher = more relevant).
+        metadata: Arbitrary chunk metadata dict (doc_id, source_path, page, etc.).
+    """
+
+    content: str
+    score: float
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class RetrieveOutput(BaseModel):
+    """Output schema for the ``retrieve`` MCP tool.
+
+    Attributes:
+        chunks: Ranked list of retrieved chunks.
+        error: Error message if retrieval failed, or None on success.
+    """
+
+    chunks: list[ChunkResult] = Field(default_factory=list)
+    error: Optional[str] = None
+
+
+class ChunkResultWithMetadata(BaseModel):
+    """A single retrieved chunk for the ``retrieve_with_metadata`` tool.
+
+    Attributes:
+        content: Raw text content of the chunk.
+        score: RRF fusion score (higher = more relevant).
+        source_file: Original file name or URL of the source document.
+        page: Page number within the source document, if applicable.
+        chunk_id: Unique identifier of this chunk.
+    """
+
+    content: str
+    score: float
+    source_file: str
+    page: Optional[int] = None
+    chunk_id: str
+
+
+class RetrieveWithMetadataOutput(BaseModel):
+    """Output schema for the ``retrieve_with_metadata`` MCP tool.
+
+    Attributes:
+        chunks: Ranked list of retrieved chunks with explicit metadata fields.
+        error: Error message if retrieval failed, or None on success.
+    """
+
+    chunks: list[ChunkResultWithMetadata] = Field(default_factory=list)
+    error: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# list_collections
+# ---------------------------------------------------------------------------
+
+
+class CollectionInfo(BaseModel):
+    """Metadata for a single collection.
+
+    Attributes:
+        name: Collection name.
+        doc_count: Number of documents in this collection.
+        description: Human-readable description or empty string.
+    """
+
+    name: str
+    doc_count: int = Field(ge=0)
+    description: str = ""
+
+
+class ListCollectionsOutput(BaseModel):
+    """Output schema for the ``list_collections`` MCP tool.
+
+    Attributes:
+        collections: List of available collections with their metadata.
+        error: Error message if the call failed, or None on success.
+    """
+
+    collections: list[CollectionInfo] = Field(default_factory=list)
     error: Optional[str] = None

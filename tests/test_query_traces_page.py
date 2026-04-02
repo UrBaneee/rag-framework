@@ -237,7 +237,7 @@ def test_score_bar_none():
 
 def test_query_traces_page_imports():
     mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/4_query_traces.py"),
+        str(BASE / "rag/app/studio/pages/2_query_traces.py"),
         "query_traces_page",
     )
     assert mod is not None
@@ -250,7 +250,7 @@ def test_query_traces_page_empty_query_not_executed():
     rerun_called = []
     stub.rerun = lambda: rerun_called.append(True)
     _import_with_st(
-        str(BASE / "rag/app/studio/pages/4_query_traces.py"),
+        str(BASE / "rag/app/studio/pages/2_query_traces.py"),
         "query_traces_page_empty",
         stub=stub,
     )
@@ -265,7 +265,7 @@ def test_query_traces_page_no_submit_no_run():
     rerun_called = []
     stub.rerun = lambda: rerun_called.append(True)
     _import_with_st(
-        str(BASE / "rag/app/studio/pages/4_query_traces.py"),
+        str(BASE / "rag/app/studio/pages/2_query_traces.py"),
         "query_traces_no_submit",
         stub=stub,
     )

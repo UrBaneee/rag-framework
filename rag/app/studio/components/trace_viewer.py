@@ -181,8 +181,8 @@ def render_run_summary_table(runs: list[dict[str, Any]]) -> None:
             "Source": meta.get("source_path", meta.get("query", ""))[-40:] if (
                 meta.get("source_path") or meta.get("query")
             ) else "—",
-            "Elapsed ms": meta.get("elapsed_ms", "—"),
-            "Chunks": meta.get("chunk_count", "—"),
+            "Elapsed ms": meta.get("elapsed_ms") if meta.get("elapsed_ms") is not None else None,
+            "Chunks": meta.get("chunk_count") if meta.get("chunk_count") is not None else None,
             "Time": _utc_to_local(r.get("created_at", "")[:19]),
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

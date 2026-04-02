@@ -1,7 +1,8 @@
 # Project: Pluggable RAG Knowledge Retrieval Framework
 
 **Author:** (Your Name)
-**Status:** Architecture Finalized — Implementation Phase Ready
+**Status:** 15 of 16 phases complete (99%) — Production-Ready Core; 1 V2 task remaining (Task 6.4 LLM reranker)
+**Last updated:** 2026-04-01
 
 ---
 
@@ -168,10 +169,12 @@ Supported formats (scope-aligned) include:
 
 | Format | Parser | V1 | V2 |
 |--------|--------|----|----|
-| PDF | PyMuPDF | ✅ | |
+| PDF | PyMuPDF (line-level, ALL-CAPS heading detection) | ✅ | |
 | HTML | Trafilatura | ✅ | |
 | TXT / Markdown | md_parser | ✅ | |
-| DOCX | python-docx | | ✅ |
+| DOCX | python-docx | ✅ | |
+| XLSX | openpyxl | ✅ | |
+| Web URL / GitHub | WebConnector (trafilatura) | ✅ | |
 | PPTX | python-pptx | | ✅ |
 | Scanned PDF | PaddleOCR | | ✅ |
 | Images | OCR | | ✅ |
@@ -2701,6 +2704,11 @@ Update rule: After each task is completed, update the corresponding status, comp
 | Phase 15 | 6 | 6 | 100% |
 | **Total** | **86** | **85** | **99%** |
 
+> **Note:** The table above tracks original dev_spec phases only.
+> All session work from 2026-04-01 (WebConnector, combined Studio page, BEIR eval,
+> resume gold eval, 3 new MCP tools, evaluation panel improvements) is documented
+> in **Post-Ship New Features** above.
+
 ---
 
 ## Post-Ship Bug Fixes
@@ -2709,3 +2717,27 @@ Update rule: After each task is completed, update the corresponding status, comp
 |---|---|---|---|
 | 2026-03-24 | `rag/app/studio/pages/1_ingestion_manager.py` | `No module named 'rag.infra.db'` — stale import path | Updated to `rag.infra.stores.docstore_sqlite` / `tracestore_sqlite` |
 | 2026-03-24 | `rag/app/studio/components/trace_viewer.py` | Timestamps displayed in UTC instead of local time | Added `_utc_to_local()` helper; applied to summary table, run selector, and event body |
+| 2026-03-24 | `rag/app/studio/pages/1_ingestion_manager.py`, `4_query_traces.py` | `'IndexManager' object has no attribute 'vector_index'` | Fixed to use `mgr.faiss` and `mgr.bm25` per actual IndexManager API |
+| 2026-03-24 | `rag/infra/chunking/chunk_packer_anchor_aware.py` | Token counting used `len(text) // 4` heuristic — undercounts CJK by ~4× | Replaced with `tiktoken cl100k_base` encoder; falls back to char heuristic if tiktoken unavailable |
+| 2026-03-24 | `rag/infra/indexes/bm25_local.py` | BM25 scores 0 for all Chinese text — whitespace tokenizer produces no tokens for CJK | Added jieba word segmentation for CJK text; falls back to character-level if jieba absent |
+| 2026-03-24 | `rag/pipelines/ingest_pipeline.py` | Duplicate chunks in index — Streamlit uploads to random temp paths breaking `get_prev_doc_id_for_source()` dedup | Added `canonical_name` parameter to `ingest()` so Streamlit passes `uploaded_file.name` as stable lookup key |
+| 2026-03-24 | `rag/pipelines/query_pipeline.py` | Irrelevant English resume chunks returned for Chinese queries | Added `_language_filter()` post-RRF: drops candidates with no CJK text AND BM25=0 when query is CJK |
+| 2026-03-24 | `rag/app/studio/components/candidate_table.py` | Vector scores displayed as negative numbers (stored as `-L2_distance`) | Display as `abs(vector_score)` with label "L2 dist ↓"; added ↑/↓ direction arrows to all score headers |
+| 2026-03-24 | `rag/infra/stores/docstore_sqlite.py` | No `list_documents()` or `get_all_chunks()` methods | Added both methods to support Chunk Browser page |
+| 2026-03-24 | `rag/infra/chunking/block_splitter_paragraph.py` | Oversized blocks (up to 710 tok) — no size limit on paragraph blocks | Added `max_tokens=512` param; blocks exceeding limit are sentence-split using `_SENTENCE_SPLIT_RE` (handles `.!?` and `。！？`) |
+| 2026-03-24 | `rag/infra/parsing/pdf_pymupdf.py` | Section headers (e.g. "PROFESSIONAL EXPERIENCE") merged into content blocks — font-size-only detection misses bold-only headers | Switched from block-level to line-level analysis; ALL-CAPS lines matching `^[A-Z][A-Z\s&/\-]{3,59}$` detected as headings and flushed as separate HEADING IRBlocks |
+
+## Post-Ship New Features
+
+| Date | File(s) | Feature | Notes |
+|---|---|---|---|
+| 2026-03-24 | `rag/infra/embedding/multilingual_embedding.py`, `embedding_factory.py` | Multilingual embedding provider | `MultilingualEmbeddingProvider` using `paraphrase-multilingual-mpnet-base-v2` (768-dim, 50+ languages, local, no API key); registered as `"multilingual"` in factory |
+| 2026-03-24 | `rag/app/studio/pages/2_chunk_browser.py` | Chunk Browser page | Stats bar (count, docs, avg/min/max tokens), token distribution chart, document selector, text search, sort options; per-chunk expander with full text + token badge (🟢≤256 / 🟡≤450 / 🔴>450) |
+| 2026-03-24 | `rag/infra/rerank/crossencoder_reranker.py` | Cross-encoder reranker | `CrossEncoderReranker` using `sentence-transformers` `cross-encoder/ms-marco-MiniLM-L-6-v2`; local, no API key; wired into `QueryPipeline` step 6; exposed in Query Traces sidebar |
+| 2026-04-01 | `rag/infra/connectors/web_connector.py` | Web / URL ingestion connector | `WebConnector` using `trafilatura.fetch_url()`; auto-converts GitHub blob URLs to raw.githubusercontent.com; returns `WebArtifact` with temp file + canonical name; supports `.md` detection for GitHub raw URLs |
+| 2026-04-01 | `rag/app/studio/pages/1_ingest_inspect.py` | Combined Ingest + Inspect page | Replaced 3 separate pages (Ingestion Manager, Chunk Browser, Ingestion Traces) with a single page; top section: Upload Files tab + From URLs tab; bottom section: Chunk Browser tab + Ingestion Traces tab; multi-file batch upload with per-file results and canonical name display |
+| 2026-04-01 | `rag/app/studio/pages/2_query_traces.py` | Query Traces sidebar reranker model fix | Reranker model input now defaults to `"cross-encoder/ms-marco-MiniLM-L-6-v2"` for crossencoder and `"rerank-2"` for voyage provider; no longer hardcoded |
+| 2026-04-01 | `rag/app/studio/pages/3_evaluation_panel.py` | Evaluation panel — embedding + suite improvements | Added embedding provider config (openai/multilingual/none) so vector index is used during eval; added `resume_qrels` suite with suite metadata card (type/status/limitation); `abstain` entries excluded from metric computation but shown as Skipped in per-case table |
+| 2026-04-01 | `rag/app/mcp_server/server.py`, `schemas.py` | Three new MCP tools for MAEDA integration | `retrieve` → raw chunks with RRF score + metadata dict; `retrieve_with_metadata` → explicit `source_file/page/chunk_id` fields; `list_collections` → doc counts per collection; all three have full Pydantic schemas and error handling |
+| 2026-04-01 | `scripts/beir_eval.py` | BEIR benchmark evaluation runner | Downloads SciFact/FIQA/other BEIR datasets; ingests with large chunk size (no-split mode) to preserve qrel alignment; runs hybrid BM25+FAISS retrieval; reports nDCG@10/MRR/Recall vs published baselines; SciFact result: nDCG@10=0.703 (beats ColBERT 0.671) |
+| 2026-04-01 | `tests/fixtures/resume_qrels.json` | Human-labeled gold evaluation set | 30 queries across 6 real resumes (Chris Shen, Skye Yin, Sharon Zheng, Zhuoya Shi, Qian Chen, Rita Ouyang); 28 answerable + 2 unanswerable (abstain); non-circular ground truth labeled from document content; Recall@10=0.923, MRR=0.615, nDCG@10=0.688; **chunk IDs are bound to current ingestion — must regenerate after re-ingestion or parser changes** |

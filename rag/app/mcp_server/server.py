@@ -8,13 +8,20 @@ from mcp.server.fastmcp import FastMCP
 
 from rag.app.mcp_server.schemas import (
     CitationOutput,
+    ChunkResult,
+    ChunkResultWithMetadata,
+    CollectionInfo,
     EvalRunToolInput,
     EvalRunToolOutput,
     IngestToolInput,
     IngestToolOutput,
+    ListCollectionsOutput,
     MetricResult,
     QueryToolInput,
     QueryToolOutput,
+    RetrieveInput,
+    RetrieveOutput,
+    RetrieveWithMetadataOutput,
     SyncSourceToolInput,
     SyncSourceToolOutput,
 )
@@ -362,6 +369,178 @@ def rag_sync_source(input: SyncSourceToolInput) -> SyncSourceToolOutput:
             connector=input.connector,
             error=str(exc),
         )
+
+
+# ---------------------------------------------------------------------------
+# retrieve
+# ---------------------------------------------------------------------------
+
+
+def _run_retrieval(input: RetrieveInput):
+    """Shared retrieval logic used by retrieve and retrieve_with_metadata."""
+    from rag.infra.indexes.index_manager import IndexManager
+    from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+    from rag.pipelines.query_pipeline import QueryPipeline
+
+    mgr = IndexManager(index_dir=input.index_dir)
+    trace_store = SQLiteTraceStore(input.db_path)
+
+    embed_provider = None
+    vec_index = None
+    if input.embedding_provider == "openai":
+        from rag.infra.embedding.openai_embedding import OpenAIEmbeddingProvider
+        embed_provider = OpenAIEmbeddingProvider(
+            model=input.embedding_model,
+            dimensions=input.vector_dimension,
+        )
+        vec_index = mgr.faiss
+
+    pipeline = QueryPipeline(
+        keyword_index=mgr.bm25,
+        trace_store=trace_store,
+        vector_index=vec_index,
+        embedding_provider=embed_provider,
+        answer_composer=None,   # retrieval only, no LLM
+        reranker=None,
+        top_k=input.top_k,
+    )
+    result = pipeline.query(input.query, collection=input.collection)
+    return result
+
+
+@mcp.tool(
+    name="retrieve",
+    description=(
+        "Retrieve the most relevant chunks for a query without generating an answer. "
+        "Returns raw chunk content, RRF fusion score, and full metadata dict. "
+        "Use this when you want to inspect or post-process the retrieved evidence yourself."
+    ),
+)
+def retrieve(input: RetrieveInput) -> RetrieveOutput:
+    """Retrieve ranked chunks for a query.
+
+    Args:
+        input: Validated RetrieveInput payload.
+
+    Returns:
+        RetrieveOutput with a ranked list of chunks (content, score, metadata).
+    """
+    logger.info("retrieve called: query=%r top_k=%d", input.query, input.top_k)
+    try:
+        result = _run_retrieval(input)
+        chunks = []
+        for cand in result.candidates[: input.top_k]:
+            chunks.append(
+                ChunkResult(
+                    content=cand.display_text,
+                    score=float(cand.final_score),
+                    metadata={
+                        "chunk_id": cand.chunk_id,
+                        "doc_id": cand.doc_id,
+                        "source_path": cand.metadata.get("source_path", ""),
+                        "page": cand.metadata.get("start_page") or cand.metadata.get("page"),
+                        "retrieval_source": cand.source_label,
+                        "rrf_score": cand.rrf_score,
+                    },
+                )
+            )
+        return RetrieveOutput(chunks=chunks)
+    except Exception as exc:
+        logger.exception("retrieve failed: %s", exc)
+        return RetrieveOutput(error=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# retrieve_with_metadata
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="retrieve_with_metadata",
+    description=(
+        "Retrieve the most relevant chunks for a query with explicit metadata fields. "
+        "Returns content, RRF score, source_file, page, and chunk_id as top-level fields "
+        "for easy consumption by downstream agents."
+    ),
+)
+def retrieve_with_metadata(input: RetrieveInput) -> RetrieveWithMetadataOutput:
+    """Retrieve ranked chunks with explicit metadata fields.
+
+    Args:
+        input: Validated RetrieveInput payload.
+
+    Returns:
+        RetrieveWithMetadataOutput with chunks containing content, score,
+        source_file, page, and chunk_id.
+    """
+    logger.info("retrieve_with_metadata called: query=%r top_k=%d", input.query, input.top_k)
+    try:
+        import os
+        result = _run_retrieval(input)
+        chunks = []
+        for cand in result.candidates[: input.top_k]:
+            source_path = cand.metadata.get("source_path", "") or ""
+            source_file = os.path.basename(source_path) or cand.doc_id
+            page = cand.metadata.get("start_page") or cand.metadata.get("page")
+            chunks.append(
+                ChunkResultWithMetadata(
+                    content=cand.display_text,
+                    score=float(cand.final_score),
+                    source_file=source_file,
+                    page=page,
+                    chunk_id=cand.chunk_id,
+                )
+            )
+        return RetrieveWithMetadataOutput(chunks=chunks)
+    except Exception as exc:
+        logger.exception("retrieve_with_metadata failed: %s", exc)
+        return RetrieveWithMetadataOutput(error=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# list_collections
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="list_collections",
+    description=(
+        "List all document collections available in the RAG corpus. "
+        "Returns each collection's name, document count, and description."
+    ),
+)
+def list_collections(db_path: str = "data/rag.db") -> ListCollectionsOutput:
+    """List available collections in the docstore.
+
+    Args:
+        db_path: Path to the SQLite database file.
+
+    Returns:
+        ListCollectionsOutput with a list of CollectionInfo entries.
+    """
+    logger.info("list_collections called: db_path=%s", db_path)
+    try:
+        from rag.infra.stores.docstore_sqlite import SQLiteDocStore
+
+        doc_store = SQLiteDocStore(db_path)
+        # Aggregate document counts grouped by collection field
+        collections: dict[str, int] = {}
+        for doc in doc_store.list_documents():
+            col = doc.get("collection") or "default"
+            collections[col] = collections.get(col, 0) + 1
+
+        if not collections:
+            # Always return at least the default collection
+            collections["default"] = 0
+
+        result = [
+            CollectionInfo(name=name, doc_count=count)
+            for name, count in sorted(collections.items())
+        ]
+        return ListCollectionsOutput(collections=result)
+    except Exception as exc:
+        logger.exception("list_collections failed: %s", exc)
+        return ListCollectionsOutput(error=str(exc))
 
 
 # ---------------------------------------------------------------------------

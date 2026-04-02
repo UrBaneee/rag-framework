@@ -40,9 +40,12 @@ def _make_st_stub() -> types.ModuleType:
         "set_page_config", "title", "caption", "header", "subheader",
         "info", "success", "warning", "error", "divider", "markdown",
         "expander", "spinner", "json", "metric", "rerun", "write",
-        "file_uploader", "text_input", "selectbox",
+        "file_uploader", "selectbox",
     ]:
         setattr(stub, attr, _noop)
+
+    # text_input must return a string so Path() calls don't crash
+    stub.text_input = lambda *a, **kw: kw.get("value", "")
 
     # number_input must return a real number so int() calls don't crash
     stub.number_input = lambda *a, **kw: kw.get("value", 0)
@@ -50,6 +53,13 @@ def _make_st_stub() -> types.ModuleType:
     stub.button = lambda *a, **kw: False
 
     stub.columns = lambda n: [_CM() for _ in range(n if isinstance(n, int) else len(n))]
+    stub.tabs = lambda labels: [_CM() for _ in labels]
+    stub.progress = lambda *a, **kw: _CM()
+    stub.text_area = lambda *a, **kw: ""
+    stub.stop = lambda: None
+    stub.bar_chart = _noop
+    stub.code = _noop
+    stub.cache_data = lambda *a, **kw: (lambda f: f)
     stub.sidebar = _CM()
 
     # session_state as a simple dict-like object
@@ -66,6 +76,7 @@ def _make_st_stub() -> types.ModuleType:
         ingest_result=None,
         ingest_config=None,
         ingest_error=None,
+        last_doc_ids=[],
     )
     return stub
 
@@ -82,7 +93,7 @@ def _import_page():
     try:
         spec = importlib.util.spec_from_file_location(
             "ingestion_manager_page",
-            Path(__file__).parent.parent / "rag/app/studio/pages/1_ingestion_manager.py",
+            Path(__file__).parent.parent / "rag/app/studio/pages/1_ingest_inspect.py",
         )
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)

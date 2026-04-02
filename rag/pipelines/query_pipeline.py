@@ -279,11 +279,15 @@ class QueryPipeline:
         self._top_k = top_k
         self._fusion = RRFFusion(k=rrf_k)
 
-    def query(self, query: str) -> QueryResult:
+    def query(self, query: str, collection: Optional[str] = None) -> QueryResult:
         """Run the full hybrid retrieval pipeline for a query string.
 
         Args:
             query: Natural-language query from the user.
+            collection: Optional collection name to scope retrieval.
+                When provided, only candidates whose ``metadata["collection"]``
+                matches this value are returned. Useful for separating corpora
+                (e.g. ``"resumes"`` vs ``"knowledge_base"``).
 
         Returns:
             QueryResult with ranked candidates, citations, and run metadata.
@@ -291,11 +295,11 @@ class QueryPipeline:
         start = time.monotonic()
         run_id = self._trace_store.save_run(
             run_type="query",
-            metadata={"query": query, "top_k": self._top_k},
+            metadata={"query": query, "top_k": self._top_k, "collection": collection},
         )
 
         try:
-            result = self._run(query, run_id)
+            result = self._run(query, run_id, collection=collection)
         except Exception as exc:
             logger.exception("Query failed for '%s': %s", query, exc)
             result = QueryResult(query=query, run_id=run_id, error=str(exc))
@@ -313,25 +317,30 @@ class QueryPipeline:
         )
         return result
 
-    def _run(self, query: str, run_id: str) -> QueryResult:
+    def _run(self, query: str, run_id: str, collection: Optional[str] = None) -> QueryResult:
         """Internal query execution.
 
         Args:
             query: Raw query string.
             run_id: TraceStore run identifier.
+            collection: Optional collection filter applied after fusion.
 
         Returns:
             Populated QueryResult on success.
         """
-        # 1. BM25 retrieval
-        bm25_results = self._keyword_index.search(query, top_k=self._top_k)
+        # 1. BM25 retrieval (optionally pre-filtered by collection)
+        bm25_results = self._keyword_index.search(
+            query, top_k=self._top_k, collection=collection
+        )
         logger.debug("BM25 returned %d candidates.", len(bm25_results))
 
-        # 2. Vector retrieval (optional)
+        # 2. Vector retrieval (optional, with same collection filter as BM25)
         vector_results: list[Candidate] = []
         if self._vector_index is not None and self._embedding_provider is not None:
             query_vec = self._embedding_provider.embed([query])[0]
-            vector_results = self._vector_index.search(query_vec, top_k=self._top_k)
+            vector_results = self._vector_index.search(
+                query_vec, top_k=self._top_k, collection=collection
+            )
             logger.debug("Vector search returned %d candidates.", len(vector_results))
 
         # 3. Source attribution merge

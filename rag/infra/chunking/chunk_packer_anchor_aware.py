@@ -1,4 +1,29 @@
-"""Anchor-aware chunk packer — packs TextBlocks into Chunks respecting token budgets."""
+"""Anchor-aware chunk packer — packs TextBlocks into Chunks respecting token budgets.
+
+Heading-absorption rule
+-----------------------
+A chunk that contains *only* anchor (heading) blocks with no paragraph content
+is semantically empty — it carries a section label but no retrievable facts.
+Such a chunk wastes a context-window slot and scores poorly in retrieval because
+it lacks body text for BM25/vector matching.
+
+To prevent this, the packer defers flushing when the current buffer is all-
+heading.  When the next content block (paragraph) arrives, it is added to the
+same buffer, so the final chunk starts with the heading and immediately contains
+its content.  This means a chunk like:
+
+    [HEADING] EDUCATION
+    Wake Forest University…  GPA: 3.291 …
+
+is produced instead of two separate chunks:
+
+    [HEADING] EDUCATION          ← useless on its own
+    Wake Forest University…      ← missing its section label
+
+The rule also applies across consecutive headings: if the parser emits two
+back-to-back headings (e.g. a parent section and a sub-section title), they are
+kept together until actual body text arrives.
+"""
 
 import hashlib
 import logging
@@ -77,14 +102,28 @@ def _build_chunk(doc_id: str, blocks: list[TextBlock], annotations: list[AnchorA
     parts: list[str] = []
     display_parts: list[str] = []
 
+    # Track the most recent heading seen so it can be prepended to the
+    # stable_text of pure-content blocks that follow it within the chunk.
+    # This gives BM25 keyword access to the section label even when a block
+    # contains only numeric/tabular content (e.g. "OVERALL 37.50 36.00 3.291").
+    last_heading: str = ""
+
     for block, ann in zip(blocks, annotations):
         text = block.text.strip()
         if ann.anchor_type != "none":
-            # Prefix display text with anchor context for UI readability
+            # Prefix display text with anchor type tag for UI readability
             display_parts.append(f"[{ann.anchor_type.upper()}] {text}")
+            parts.append(text)
+            last_heading = text
         else:
             display_parts.append(text)
-        parts.append(text)
+            # Inject the section heading as a context prefix in stable_text so
+            # BM25 / vector indices can match via the heading keywords even when
+            # the paragraph itself is purely numeric or tabular.
+            if last_heading:
+                parts.append(f"{last_heading}: {text}")
+            else:
+                parts.append(text)
 
     stable_text = "\n\n".join(parts)
     display_text = "\n\n".join(display_parts)
@@ -169,14 +208,27 @@ class AnchorAwareChunkPacker(BaseChunkPacker):
         buffer_anns: list[AnchorAnnotation] = []
         buffer_tokens = 0
 
+        def _buffer_has_content() -> bool:
+            """Return True if the buffer contains at least one non-anchor block."""
+            return any(a.anchor_type == "none" for a in buffer_anns)
+
         for block, ann in zip(blocks, annotations):
             block_tokens = _approx_tokens(block.text)
             is_anchor = ann.anchor_type != "none"
 
-            # Flush buffer at anchor boundaries or when budget would overflow
-            if buffer_blocks and (
-                (is_anchor) or (buffer_tokens + block_tokens > self._token_budget)
-            ):
+            # Decide whether to flush the current buffer:
+            # - At an anchor boundary (new section heading arrives) AND
+            #   the buffer already has paragraph content (not heading-only).
+            #   Heading-only buffers are held open so the heading absorbs the
+            #   content that follows it rather than becoming an empty chunk.
+            # - When adding this block would exceed the token budget regardless
+            #   of type (safety valve — prevents unbounded accumulation).
+            should_flush = buffer_blocks and (
+                (is_anchor and _buffer_has_content())
+                or (buffer_tokens + block_tokens > self._token_budget)
+            )
+
+            if should_flush:
                 chunks.append(_build_chunk(doc_id, buffer_blocks, buffer_anns))
                 buffer_blocks = []
                 buffer_anns = []

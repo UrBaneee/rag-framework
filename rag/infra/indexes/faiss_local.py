@@ -107,7 +107,12 @@ class FaissLocalIndex(BaseVectorIndex):
         if added:
             self._rebuild()
 
-    def search(self, query_vector: list[float], top_k: int) -> list[Candidate]:
+    def search(
+        self,
+        query_vector: list[float],
+        top_k: int,
+        collection: str | None = None,
+    ) -> list[Candidate]:
         """Return top-k nearest chunks by L2 distance.
 
         Scores are returned as negative L2 distance so that higher is better,
@@ -116,6 +121,11 @@ class FaissLocalIndex(BaseVectorIndex):
         Args:
             query_vector: Dense query embedding.
             top_k: Maximum number of results.
+            collection: Optional collection name to filter results.  When set,
+                FAISS is queried with an overscan (``top_k * 5``) and the
+                returned candidates are filtered to the requested collection
+                before taking ``top_k``.  Falls back to unfiltered results if
+                the filtered set is empty.
 
         Returns:
             Candidates ordered by ascending L2 distance (descending similarity).
@@ -125,8 +135,10 @@ class FaissLocalIndex(BaseVectorIndex):
             return []
 
         q = np.array([query_vector], dtype="float32")
-        k = min(top_k, len(self._id_order))
-        distances, indices = self._index.search(q, k)  # type: ignore[arg-type]
+        # Overscan when filtering by collection so small collections aren't
+        # entirely drowned out by a larger one ranked above them.
+        fetch_k = min(top_k * 5 if collection else top_k, len(self._id_order))
+        distances, indices = self._index.search(q, fetch_k)  # type: ignore[arg-type]
 
         candidates: list[Candidate] = []
         for dist, idx in zip(distances[0], indices[0]):
@@ -135,6 +147,8 @@ class FaissLocalIndex(BaseVectorIndex):
                 continue
             chunk_id = self._id_order[idx]
             _, chunk = self._store[chunk_id]
+            if collection and chunk.metadata.get("collection") != collection:
+                continue  # skip chunks outside the requested collection
             candidates.append(
                 Candidate(
                     chunk_id=chunk_id,
@@ -146,6 +160,17 @@ class FaissLocalIndex(BaseVectorIndex):
                     metadata=chunk.metadata,
                 )
             )
+            if len(candidates) == top_k:
+                break
+
+        if not candidates and collection:
+            logger.warning(
+                "FAISS collection filter '%s' matched 0 results — "
+                "falling back to unfiltered search.",
+                collection,
+            )
+            return self.search(query_vector, top_k, collection=None)
+
         return candidates
 
     def remove(self, chunk_id: str) -> None:

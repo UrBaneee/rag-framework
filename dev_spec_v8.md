@@ -1,7 +1,7 @@
 # Project: Pluggable RAG Knowledge Retrieval Framework
 
 **Author:** (Your Name)
-**Status:** 15 of 16 phases complete (99%) — Production-Ready Core; 1 V2 task remaining (Task 6.4 LLM reranker)
+**Status:** 15 of 16 phases complete (99%) — Production-Ready; shipped with Docker + CI. 1 V2 task remaining (Task 6.4 LLM reranker)
 **Last updated:** 2026-04-01
 
 ---
@@ -2741,3 +2741,10 @@ Update rule: After each task is completed, update the corresponding status, comp
 | 2026-04-01 | `rag/app/mcp_server/server.py`, `schemas.py` | Three new MCP tools for MAEDA integration | `retrieve` → raw chunks with RRF score + metadata dict; `retrieve_with_metadata` → explicit `source_file/page/chunk_id` fields; `list_collections` → doc counts per collection; all three have full Pydantic schemas and error handling |
 | 2026-04-01 | `scripts/beir_eval.py` | BEIR benchmark evaluation runner | Downloads SciFact/FIQA/other BEIR datasets; ingests with large chunk size (no-split mode) to preserve qrel alignment; runs hybrid BM25+FAISS retrieval; reports nDCG@10/MRR/Recall vs published baselines; SciFact result: nDCG@10=0.703 (beats ColBERT 0.671) |
 | 2026-04-01 | `tests/fixtures/resume_qrels.json` | Human-labeled gold evaluation set | 30 queries across 6 real resumes (Chris Shen, Skye Yin, Sharon Zheng, Zhuoya Shi, Qian Chen, Rita Ouyang); 28 answerable + 2 unanswerable (abstain); non-circular ground truth labeled from document content; Recall@10=0.923, MRR=0.615, nDCG@10=0.688; **chunk IDs are bound to current ingestion — must regenerate after re-ingestion or parser changes** |
+| 2026-04-01 | `rag/infra/indexes/bm25_local.py`, `faiss_local.py` | Collection-scoped retrieval | `BM25LocalIndex.search()` accepts optional `collection` param — pre-filters corpus before BM25 scoring so small collections aren't drowned out by large ones. `FaissLocalIndex.search()` accepts optional `collection` param — overscans 5× then filters to collection. Prevents RAG textbook (223 chunks) from crowding out resumes (32 chunks). |
+| 2026-04-01 | `rag/pipelines/query_pipeline.py` | Collection filter in QueryPipeline | `QueryPipeline.query(query, collection=None)` — threads collection through to both BM25 and FAISS searches. Eval panel auto-passes `collection="resumes"` for resume_qrels suite. |
+| 2026-04-01 | `rag/app/mcp_server/schemas.py` | Collection filter in MCP retrieve tools | `RetrieveInput` gains optional `collection` field; wired through `_run_retrieval()` to `pipeline.query()`. |
+| 2026-04-01 | SQLite + index rebuild | Backfill collection metadata | All 255 chunks (and 7 documents) updated with `collection` field (`"resumes"` / `"knowledge_base"`). BM25 index rebuilt from docstore; FAISS mapping patched and resaved. Resume gold eval after fix: Recall@10=0.964, MRR=0.622, nDCG@10=0.708. |
+| 2026-04-01 | `rag/app/studio/pages/4_connectors.py` | Connectors UI page | Four tabs: Email (IMAP), Slack, Notion, Google Docs. Credential status table (required/optional, masked values). Test Connection button + Sync Now form per connector. Shows Fetched/Ingested/Skipped/Failed metrics after sync. |
+| 2026-04-01 | `Dockerfile`, `docker-compose.yml`, `.github/workflows/ci.yml` | Docker + CI launch setup | Multi-stage Dockerfile (builder + runtime). docker-compose with `rag-studio` (port 8501) and `rag-mcp` (port 8000) services sharing a named volume. GitHub Actions CI: test matrix Python 3.11/3.12, skip e2e, then Docker build verify. |
+| 2026-04-01 | `rag/app/studio/pages/3_evaluation_panel.py` | RAGAS dotenv fix | Added `load_dotenv()` at page top so RAGAS finds `OPENAI_API_KEY` regardless of how Streamlit was launched. Fixed double `_init_state()` definition that caused `AttributeError: st.session_state has no attribute "eval_running"`. |

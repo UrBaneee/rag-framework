@@ -167,17 +167,30 @@ def _make_minimal_st_stub() -> types.ModuleType:
         setattr(stub, attr, _noop)
 
     stub.text_input = lambda *a, **kw: kw.get("value", "")
-    stub.text_area = lambda *a, **kw: ""
+    stub.text_area = lambda *a, **kw: kw.get("value", "")
     stub.number_input = lambda *a, **kw: kw.get("value", 0)
+    stub.radio = lambda *a, **kw: (kw.get("options") or [None])[0]
+    def _selectbox(*a, **kw):
+        opts = kw.get("options") or (list(a[1]) if len(a) > 1 else [])
+        return opts[0] if opts else None
+    stub.selectbox = _selectbox
+    stub.multiselect = lambda *a, **kw: []
+    stub.checkbox = lambda *a, **kw: kw.get("value", False)
+    stub.toggle = lambda *a, **kw: kw.get("value", False)
     stub.button = lambda *a, **kw: False
     stub.file_uploader = lambda *a, **kw: None
     stub.form_submit_button = lambda *a, **kw: False
+    stub.container = lambda *a, **kw: _CM()
     stub.columns = lambda n: [_CM() for _ in range(n if isinstance(n, int) else len(n))]
     # tabs must return a real list so `tab_a, tab_b = st.tabs([...])` works
     stub.tabs = lambda labels: [_CM() for _ in labels]
     stub.sidebar = _CM()
     stub.form = lambda *a, **kw: _CM()
     stub.cache_data = lambda *a, **kw: (lambda f: f)
+    # Catch-all: any attribute not explicitly set returns a no-op callable
+    stub.__class__ = type("StreamlitStub", (types.ModuleType,), {
+        "__getattr__": lambda self, name: _noop
+    })
 
     class _SS(dict):
         def __getattr__(self, k):
@@ -194,9 +207,15 @@ def _make_minimal_st_stub() -> types.ModuleType:
 
 def _import_page(file_path: str, module_name: str) -> types.ModuleType:
     stub = _make_minimal_st_stub()
-    # Also stub pandas
+    # Also stub pandas with a minimal DataFrame that supports chaining
+    class _FakeDF:
+        def __init__(self, data=None): pass
+        def __getattr__(self, name): return lambda *a, **kw: self
+        def __iter__(self): return iter([])
+        def __len__(self): return 0
+
     pd_stub = types.ModuleType("pandas")
-    pd_stub.DataFrame = lambda data: data
+    pd_stub.DataFrame = lambda *a, **kw: _FakeDF()
     old_st = sys.modules.get("streamlit")
     old_pd = sys.modules.get("pandas")
     sys.modules["streamlit"] = stub

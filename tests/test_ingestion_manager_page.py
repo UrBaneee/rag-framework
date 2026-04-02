@@ -46,21 +46,35 @@ def _make_st_stub() -> types.ModuleType:
 
     # text_input must return a string so Path() calls don't crash
     stub.text_input = lambda *a, **kw: kw.get("value", "")
+    stub.text_area = lambda *a, **kw: kw.get("value", "")
 
     # number_input must return a real number so int() calls don't crash
     stub.number_input = lambda *a, **kw: kw.get("value", 0)
     # button must return False so the run block is not entered at import time
     stub.button = lambda *a, **kw: False
 
+    def _selectbox(*a, **kw):
+        opts = kw.get("options") or (list(a[1]) if len(a) > 1 else [])
+        return opts[0] if opts else None
+    stub.selectbox = _selectbox
+    stub.radio = lambda *a, **kw: (kw.get("options") or [None])[0]
+    stub.multiselect = lambda *a, **kw: []
+    stub.checkbox = lambda *a, **kw: kw.get("value", False)
+    stub.toggle = lambda *a, **kw: kw.get("value", False)
+    stub.container = lambda *a, **kw: _CM()
+
     stub.columns = lambda n: [_CM() for _ in range(n if isinstance(n, int) else len(n))]
     stub.tabs = lambda labels: [_CM() for _ in labels]
     stub.progress = lambda *a, **kw: _CM()
-    stub.text_area = lambda *a, **kw: ""
     stub.stop = lambda: None
     stub.bar_chart = _noop
     stub.code = _noop
     stub.cache_data = lambda *a, **kw: (lambda f: f)
     stub.sidebar = _CM()
+    # Catch-all: any attribute not explicitly set returns a no-op callable
+    stub.__class__ = type("StreamlitStub", (types.ModuleType,), {
+        "__getattr__": lambda self, name: _noop
+    })
 
     # session_state as a simple dict-like object
     class _SessionState(dict):

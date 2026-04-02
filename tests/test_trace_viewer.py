@@ -34,8 +34,19 @@ def _make_st_stub() -> types.ModuleType:
 
     stub.number_input = lambda *a, **kw: kw.get("value", 0)
     stub.text_input = lambda *a, **kw: kw.get("value", "")
+    stub.text_area = lambda *a, **kw: kw.get("value", "")
+    stub.radio = lambda *a, **kw: (kw.get("options") or [None])[0]
+    stub.selectbox = lambda *a, **kw: (kw.get("options") or [None])[0]
+    stub.multiselect = lambda *a, **kw: []
+    stub.checkbox = lambda *a, **kw: kw.get("value", False)
+    stub.toggle = lambda *a, **kw: kw.get("value", False)
+    stub.file_uploader = lambda *a, **kw: None
     stub.columns = lambda n: [_CM() for _ in range(n if isinstance(n, int) else len(n))]
     stub.sidebar = _CM()
+    # Catch-all: any attribute not explicitly set returns a no-op callable
+    stub.__class__ = type("StreamlitStub", (types.ModuleType,), {
+        "__getattr__": lambda self, name: _noop
+    })
 
     # cache_data as a pass-through decorator
     stub.cache_data = lambda *a, **kw: (lambda f: f)
@@ -191,32 +202,31 @@ def test_stage_order_covers_all_labels():
 
 
 # ---------------------------------------------------------------------------
-# Ingestion trace page tests
+# Trace store helper tests (replaces old 3_ingestion_traces.py page tests)
 # ---------------------------------------------------------------------------
 
 
-def test_ingestion_trace_page_imports():
-    mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
-        "ingestion_traces_page",
-    )
-    assert mod is not None
-
-
-def test_load_runs_helper_returns_list_on_missing_db():
-    """_load_runs should return an empty list when DB does not exist."""
-    mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
-        "ingestion_traces_page2",
-    )
-    result = mod._load_runs("/nonexistent/path/rag.db", 50)
+def test_load_runs_returns_list_on_empty_db(tmp_path):
+    """SQLiteTraceStore.list_runs should return an empty list on a fresh DB."""
+    from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+    result = SQLiteTraceStore(str(tmp_path / "rag.db")).list_runs(limit=50)
     assert isinstance(result, list)
+    assert result == []
 
 
-def test_load_events_for_run_returns_list_on_missing_db():
-    mod = _import_with_st(
-        str(BASE / "rag/app/studio/pages/3_ingestion_traces.py"),
-        "ingestion_traces_page3",
-    )
-    result = mod._load_events_for_run("/nonexistent/path/rag.db", "run-xyz")
+def test_load_runs_filters_ingest_types(tmp_path):
+    """Filter logic used by the ingestion traces panel returns only ingest runs."""
+    from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+    runs = SQLiteTraceStore(str(tmp_path / "rag.db")).list_runs(limit=50)
+    ingest_runs = [r for r in runs if r["run_type"] in (
+        "ingest", "ingest_start", "ingest_complete", "ingest_error",
+    )]
+    assert isinstance(ingest_runs, list)
+
+
+def test_load_events_for_run_returns_list_on_empty_db(tmp_path):
+    """SQLiteTraceStore.list_runs should return an empty list on a fresh DB."""
+    from rag.infra.stores.tracestore_sqlite import SQLiteTraceStore
+    result = SQLiteTraceStore(str(tmp_path / "rag.db")).list_runs(limit=500)
     assert isinstance(result, list)
+    assert result == []

@@ -395,7 +395,7 @@ with inspect_tab_chunks:
             selected_label = st.selectbox(
                 "Document", list(doc_options.keys()), index=default_idx
             )
-            selected_doc_id = doc_options[selected_label]
+            selected_doc_id = doc_options.get(selected_label)
 
             # Filter + sort
             filtered = [c for c in chunks if selected_doc_id is None or c.doc_id == selected_doc_id]

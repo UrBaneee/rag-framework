@@ -4,6 +4,24 @@ A modular, pluggable Retrieval-Augmented Generation (RAG) framework with hybrid 
 
 > **Not sure what RAG is?** RAG (Retrieval-Augmented Generation) lets you ask questions about your own documents. You upload files (PDFs, Word docs, web pages), and the system finds the most relevant passages and uses an LLM to write a grounded answer with citations.
 
+> **Update (2026-11-17): what changed since this README was written (2026-08-15).**
+> The original text below is kept as written. Where it no longer matches the code, a
+> note marked **Update** says what changed.
+>
+> - **This repo now also holds the event-attribution test set** for MAEDA's phase 4
+>   experiment: a frozen event script, the documents written from it, a renderer for
+>   the synthetic sales data, and a guard that keeps test-split content out of any run.
+>   See [Update: event-attribution test set](#update-event-attribution-test-set-for-maeda-phase-4)
+>   near the end.
+> - **Retrieval helped measurably in that experiment.** With retrieval on, MAEDA's
+>   reports named an event's true cause far more often (+0.653 event-level accuracy,
+>   exact sign-flip p = 0.002 over 12 sealed events). With it off, none did.
+> - **The MCP retrieval tools take `db_path` and `index_dir` per request**, so one
+>   server can serve separate stores (phase 4 used a dev store and a separate reveal
+>   store).
+> - **Smaller corrections** are marked inline: the test count (now 1,435), the CLI path
+>   in the project structure, the macOS OpenMP fix (now automatic), and the clone URL.
+
 ---
 
 ## Why this project exists
@@ -141,7 +159,7 @@ You do **not** need a GPU. Everything runs on CPU.
 
 ```bash
 # 1. Clone the repo
-git clone <repo-url>
+git clone <repo-url>   # Update: https://github.com/UrBaneee/rag-framework.git
 cd rag-framework
 
 # 2. Create a virtual environment
@@ -203,6 +221,13 @@ All pipeline settings live in `configs/settings.yaml`. You can edit them directl
 | `generation.llm_model` | `gpt-4o-mini` | Which OpenAI model generates answers |
 | `ingestion.chunk_max_tokens` | `400` | Max tokens per chunk |
 | `reranking.enabled` | `true` | Whether to rerank results |
+
+> **Update:** two clarifications. First, `chunk_max_tokens` still defaults to 400, even
+> though the ASQA study above found 512 to be the sweet spot; the default was never
+> changed to match. Second, `configs/settings.yaml` governs the CLI and the Studio. The
+> MCP retrieval tools don't read it: they resolve embedding and reranking from request
+> fields and env vars, and the default there is BM25-only with no reranking (see
+> [§8](#8-mcp-server-claude-integration)).
 
 ---
 
@@ -414,6 +439,11 @@ Requesting a `collection` that no document was ever ingested with raises an
 `INVALID_COLLECTION` error rather than silently searching everything — see
 "Retrieval configuration contract" below.
 
+> **Update:** `retrieve`, `retrieve_with_metadata`, `rag.query` and `rag.ingest` also take
+> `db_path` and `index_dir`, so a caller can point a single running server at a
+> specific store. MAEDA uses this to pin its experiment runs to a known store, and
+> checks that store's content hash before and after each run.
+
 ### Retrieval configuration contract
 
 `retrieve`, `retrieve_with_metadata`, and `rag.query` all take the same
@@ -574,6 +604,12 @@ rag-framework/
 └── pyproject.toml
 ```
 
+> **Update:** three corrections to the tree above. The CLI lives at `rag/cli/` (as the
+> `python -m rag.cli.*` commands in §6 already say), not under `rag/app/`. Two new
+> directories exist: `rag/eval/` (`split_guard.py`, the guard that refuses test-split
+> queries) and `eval/fixtures/` (`event_script/` and `tb5_retrieval/`, described in the
+> event-attribution section below). And there are now 1,435 tests, not 1,255.
+
 ---
 
 ## 12. Running Tests
@@ -602,6 +638,11 @@ This is an OpenMP conflict between FAISS and PyTorch. Fix it by adding this to y
 KMP_DUPLICATE_LIB_OK=TRUE
 ```
 Or prefix your command: `KMP_DUPLICATE_LIB_OK=TRUE streamlit run ...`
+
+> **Update:** you no longer need to do this. `rag/__init__.py` now sets
+> `KMP_DUPLICATE_LIB_OK=TRUE` before faiss, torch or voyageai can be imported, for every
+> entry point (see the reranker notes in §8). Set it to `FALSE` only if you want the
+> crash to surface.
 
 **RAGAS evaluation fails with "RAGAS is not installed"**
 ```bash
@@ -653,6 +694,58 @@ Stated plainly rather than left for someone else to discover:
   cross-process safety (file locking, see [Architecture](#architecture)) was
   a deliberate scoping decision for "safe on one machine," not a distributed
   system.
+
+---
+
+## Update: event-attribution test set for MAEDA phase 4
+
+*Added 2026-11-17. This section did not exist in the original README.*
+
+Between August and November 2026 this repo became the home of the test set for one of
+MAEDA's pre-registered hypotheses (H2): *does retrieval let MAEDA name the real cause of
+a data anomaly?* Results:
+[MAEDA docs/phase4_results.md](https://github.com/UrBaneee/MAEDA/blob/main/docs/phase4_results.md).
+
+**What's here**
+
+| Path | What it is |
+|---|---|
+| `eval/fixtures/event_script/event_script.yaml` | Frozen ground truth. Each event specifies a data signal (metric, segment, direction, magnitude, shape, time window), the documents that explain it, and the probe questions |
+| `eval/fixtures/event_script/render_v2.py` | Renders the synthetic sales CSV from the events, using MAEDA's own renderer pinned at a fixed commit. A no-event baseline lines up row for row, so each signal's size can be measured |
+| `eval/fixtures/event_script/verify.py` | Structural and leakage checks on the script; also verifies the v1 events are unchanged against the `event-script-v1` tag |
+| `eval/fixtures/tb5_retrieval/corpus/` | Public documents (emails, meeting notes, policy memos, promo calendars) written from the script |
+| `rag/eval/split_guard.py` | Refuses any test-split probe question at `QueryPipeline.query()`, before anything is logged or searched |
+
+**Event types**
+
+- `normal`: a signal in the data and an explanation in the documents. Tests whether the
+  report cites the right cause.
+- `distractor`: an explanation in the documents but no signal in the data. Citing it is
+  wrong.
+- `unexplained`: a signal in the data and nothing in the documents. Tests whether the
+  system admits it doesn't know.
+
+**Keeping it from being "find the document, copy the answer"**
+
+- Probe questions were frozen before any document was written.
+- A check rejects any event whose probe questions share a content word with its key
+  facts.
+- A large share of documents are `implicit`: they describe the situation without naming
+  the metric or saying what it caused.
+- The documents are messy on purpose: reply chains, meeting minutes, abbreviations.
+
+**Sealed test half.** The v2 test events and their documents are kept only locally in
+`eval/sealed/` (gitignored). Only `RECEIPT.json`, which holds hashes, is committed, along
+with SHA-256 digests of the test probes so the guard works without the sealed file. The
+sealed content was used once, for the reveal on 2026-11-12.
+
+**Limitations**
+
+- Both the data and the documents are synthetic, and an LLM agent wrote the documents.
+- The confirmatory test pool (12 events) contains only `normal` events with one
+  consistent cause, so it does not test conflicting evidence.
+- `distractor` (3) and `unexplained` (2) events exist only in v1, too few to estimate a
+  rate.
 
 ---
 
